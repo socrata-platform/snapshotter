@@ -11,3 +11,8 @@ val TestOptionShortTraces = "-oDS"
 val TestOptionFullTraces = "-oDF"
 
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, TestOptionNoTraces)
+
+enablePlugins(sbtbuildinfo.BuildInfoPlugin)
+
+// Setup revolver.
+Revolver.settings
