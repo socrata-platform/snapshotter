@@ -1,5 +1,6 @@
 package com.socrata.snapshotter
 
+import org.slf4j.LoggerFactory
 import org.joda.time.DateTime
 import com.rojoma.json.v3.codec.JsonEncode
 import buildinfo.BuildInfo
@@ -9,7 +10,10 @@ import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.SimpleResource
 
 object VersionService extends SimpleResource {
-  override def get = { req =>
+  private val logger = LoggerFactory.getLogger(getClass)
+
+  override def get = req => {
+    logger.info("/version");
     OK ~> Json(JsonEncode.toJValue(
                 Map("version" -> BuildInfo.version,
                     "scalaVersion" -> BuildInfo.scalaVersion,
