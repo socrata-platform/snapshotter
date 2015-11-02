@@ -10,16 +10,17 @@ import com.socrata.http.server.routing.SimpleRouteContext.{Route, Routes}
 import com.socrata.http.server.{SocrataServerJetty, HttpResponse, HttpRequest, HttpService}
 
 object Snapshotter extends App {
-  case class Router(versionService: HttpService) {
+
+  case class Router(versionService: HttpService,
+                    snapshotService: (String) => HttpService) {
 
     private val logger = LoggerFactory.getLogger(getClass)
     private val logWrapper =
-       NewLoggingHandler(LoggingOptions(logger, Set("X-Socrata-Host",
-                                                    "X-Socrata-Resource",
-                                                    ReqIdHeader))) _
-
+      NewLoggingHandler(LoggingOptions(logger, Set("X-Socrata-Host", "X-Socrata-Resource", ReqIdHeader))) _
     val routes = Routes(
-      Route("/version", versionService))
+      Route("/version", versionService),
+      Route("/snapshot/{String}", snapshotService)
+    )
 
     def notFound(req: HttpRequest): HttpResponse =
        NotFound ~> Content("text/plain", "Nothing found :(")
@@ -28,7 +29,7 @@ object Snapshotter extends App {
       routes(req.requestPath).getOrElse(notFound _)(req)
   }
 
-  val router = Router(VersionService)
+  val router = Router(VersionService, SnapshotService.service)
   val handler = router.route _
 
   val server = new SocrataServerJetty(
