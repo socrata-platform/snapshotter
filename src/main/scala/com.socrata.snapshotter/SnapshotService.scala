@@ -1,6 +1,10 @@
 package com.socrata.snapshotter
 
+import java.io.IOException
 import java.nio.file.{StandardCopyOption, Paths, Files}
+
+import com.rojoma.json.v3.ast.{JString, JValue}
+import com.rojoma.json.v3.interpolation._
 
 import com.socrata.curator._
 import com.socrata.http.client.{Response, SimpleHttpRequest, RequestBuilder}
@@ -8,11 +12,10 @@ import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.SimpleResource
 import com.socrata.http.server.{HttpResponse, HttpRequest, HttpService}
-import com.typesafe.config.ConfigFactory
+import org.apache.commons.io.IOUtils
 import org.slf4j.LoggerFactory
 
-// /api/views/datasetId/rows.csv?accessType=DOWNLOAD
-object SnapshotService extends SimpleResource {
+case class SnapshotService(client: CuratedServiceClient) extends SimpleResource {
   private val logger = LoggerFactory.getLogger(getClass)
 
   def handleRequest(req: HttpRequest, datasetId: String): HttpResponse = {
@@ -20,10 +23,8 @@ object SnapshotService extends SimpleResource {
     val makeReq: RequestBuilder => SimpleHttpRequest = { base =>
       val host = req.header("X-Socrata-Host").map("X-Socrata-Host" -> _)
 
-      logger.info("Host: {}", host)
-
       val csvReq = base.
-        addPaths(Seq("views", datasetId, "rows.csv")).
+        addPaths(Seq("views", datasetId, "rows.cjson")).
         addHeaders(host).
         addParameter("accessType" -> "DOWNLOAD").get
       logger.info(csvReq.toString)
@@ -31,22 +32,38 @@ object SnapshotService extends SimpleResource {
       csvReq
     }
 
-    lazy val config = ConfigFactory.load().getConfig("com.socrata")
+    val bytes = client.execute(makeReq, saveExport)
 
-    for {
-      // broker is loaded with our service's config info and is able to create a connection with zookeeper
-      broker <- DiscoveryBrokerFromConfig(new DiscoveryBrokerConfig(config, "broker"), "snapshotter")
-      // client (returned from zookeeper) is configured specifically for making requests to core (specified in config file)
-      client <- broker.clientFor(new CuratedClientConfig(config, "upstream"))
-    } {
-      client.execute(makeReq, saveExport)
+    bytes match {
+      case Right(b) =>
+        OK ~> Content("text/plain", s"Successfully wrote $b bytes of dataset $datasetId.")
+      case Left(msg) =>
+        InternalServerError ~> Json(msg)
     }
-
-     OK ~> Content("application/json", datasetId)
   }
 
-  def saveExport(resp: Response): Unit = {
-    Files.copy(resp.inputStream(), Paths.get("/tmp/test.csv"), StandardCopyOption.REPLACE_EXISTING)
+  def saveExport(resp: Response): Either[JValue, Long] = {
+    if (resp.resultCode != 200) {
+      val underlying = try {
+        resp.jValue()
+      } catch {
+        case _: Exception =>
+          JString(IOUtils.toString(resp.inputStream(), "UTF-8"))
+      }
+
+      val msg = json"""{ message: "Failed to export!", underlying: $underlying }"""
+      logger.warn(msg.toString)
+      return Left(msg)
+    }
+
+    try {
+      Right(Files.copy(resp.inputStream(), Paths.get("/tmp/test.cjson"), StandardCopyOption.REPLACE_EXISTING))
+    } catch {
+      case ex: IOException =>
+        val msg = json"""{ message: "Failed to write file!", info: ${ex.getMessage} }"""
+        logger.warn(msg.toString)
+        Left(msg)
+    }
   }
 
   def service(datasetId: String): HttpService = {
@@ -55,5 +72,7 @@ object SnapshotService extends SimpleResource {
           handleRequest(req, datasetId)
     }
   }
+
+
 
 }
