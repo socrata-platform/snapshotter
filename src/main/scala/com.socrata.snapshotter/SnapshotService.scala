@@ -1,10 +1,11 @@
 package com.socrata.snapshotter
 
-import java.io.IOException
-import java.nio.file.{StandardCopyOption, Paths, Files}
+import java.io.{InputStream, FileOutputStream, BufferedOutputStream, IOException}
+import java.util.zip.{ZipEntry, ZipOutputStream}
 
 import com.rojoma.json.v3.ast.{JString, JValue}
 import com.rojoma.json.v3.interpolation._
+import com.rojoma.simplearm.util._
 
 import com.socrata.curator._
 import com.socrata.http.client.{Response, SimpleHttpRequest, RequestBuilder}
@@ -57,7 +58,7 @@ case class SnapshotService(client: CuratedServiceClient) extends SimpleResource 
     }
 
     try {
-      Right(Files.copy(resp.inputStream(), Paths.get("/tmp/test.cjson"), StandardCopyOption.REPLACE_EXISTING))
+      Right(zipStream(resp.inputStream(), "/tmp/test.zip", "test.cjson"))
     } catch {
       case ex: IOException =>
         val msg = json"""{ message: "Failed to write file!", info: ${ex.getMessage} }"""
@@ -70,6 +71,13 @@ case class SnapshotService(client: CuratedServiceClient) extends SimpleResource 
     new SimpleResource {
       override def get: HttpService = req =>
           handleRequest(req, datasetId)
+    }
+  }
+
+  def zipStream(inStream: InputStream, path: String, filename: String): Long = {
+    using(new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(path)))) { zos =>
+      zos.putNextEntry(new ZipEntry(filename))
+      IOUtils.copyLarge(inStream, zos)
     }
   }
 
