@@ -9,7 +9,7 @@ object Snapshotter extends App {
     for {
       // broker is loaded with our service's config info and is able to create a connection with zookeeper
       broker <- DiscoveryBrokerFromConfig(SnapshotterConfig.broker, "snapshotter")
-      // client (returned from zookeeper) is configured specifically for making requests to core (specified in config file)
+      // client (returned from zookeeper) is configured for making requests to core (specified in config file)
       client <- broker.clientFor(SnapshotterConfig.client)
     } {
       val router = Router(VersionService, SnapshotService(client).service, ListService)
@@ -17,7 +17,7 @@ object Snapshotter extends App {
 
       val server = new SocrataServerJetty(
         handler = handler,
-        options = SocrataServerJetty.defaultOptions.withPort(6800)
+        options = SocrataServerJetty.defaultOptions.withPort(6800).withOnStop(BlobManager.shutdownManager)
       )
 
       server.run()

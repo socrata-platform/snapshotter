@@ -13,6 +13,8 @@ import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.SimpleResource
 import com.socrata.http.server.{HttpResponse, HttpRequest, HttpService}
+
+import org.joda.time.{DateTime, DateTimeZone}
 import org.apache.commons.io.IOUtils
 import org.slf4j.LoggerFactory
 
@@ -29,17 +31,18 @@ case class SnapshotService(client: CuratedServiceClient) extends SimpleResource 
                               resp.jValue()
                               } catch {
                                 case _: Exception => JString(IOUtils.toString(resp.inputStream(), "UTF-8"))
-                          }
+                              }
         val msg = json"""{ message: "Failed to export!", underlying: $underlying }"""
-        logger.warn(msg.toString)
+        logger.warn(msg.toString())
         return Left(msg)
       }
 
-      val inStream = new GZipCompressInputStream(resp.inputStream(), 4096)
       try {
-        //TODO: need to incorporate datatime into file name
-        val uploadResult = BlobManager.upload(inStream, s"/$datasetId/$datasetId.zip")
-        Right(uploadResult)
+        using(new GZipCompressInputStream(resp.inputStream(), 4096)) { inStream =>
+          val dt = new DateTime(DateTimeZone.forID("UTC"))
+          val uploadResult = BlobManager.upload(inStream, s"/$datasetId/$datasetId-$dt.zip")
+          Right(uploadResult)
+        }
       }
       catch {
         case exception: AmazonS3Exception => Left(
@@ -58,14 +61,14 @@ case class SnapshotService(client: CuratedServiceClient) extends SimpleResource 
         addPaths(Seq("views", datasetId, "rows.csv")).
         addHeaders(host).
         addParameter("accessType" -> "DOWNLOAD").get
-      logger.info(csvReq.toString)
+      logger.info(csvReq.toString())
 
       csvReq
     }
 
     val response = client.execute(makeReq, saveExport)
 
-    //need to catch response signifying error
+    // need to catch response signifying error
     response match {
       case Right(ur) =>
         OK ~> Content("text/plain", s"Successfully wrote dataset $datasetId, to ${ur.getKey}")

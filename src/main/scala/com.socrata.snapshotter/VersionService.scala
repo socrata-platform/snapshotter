@@ -13,7 +13,7 @@ object VersionService extends SimpleResource {
   private val logger = LoggerFactory.getLogger(getClass)
 
   override def get = req => {
-    logger.info("/version");
+    logger.info("/version")
     OK ~> Json(JsonEncode.toJValue(
                 Map("version" -> BuildInfo.version,
                     "scalaVersion" -> BuildInfo.scalaVersion,

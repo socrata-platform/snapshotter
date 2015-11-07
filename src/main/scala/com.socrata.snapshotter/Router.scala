@@ -6,6 +6,7 @@ import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.SimpleRouteContext._
 import com.socrata.http.server.util.RequestId._
 import com.socrata.http.server.util.handlers.{LoggingOptions, NewLoggingHandler}
+
 import org.slf4j.LoggerFactory
 
 case class Router(versionService: HttpService,

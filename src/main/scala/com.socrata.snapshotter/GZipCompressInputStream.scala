@@ -2,19 +2,20 @@ package com.socrata.snapshotter
 
 import java.io.{PipedOutputStream, PipedInputStream, IOException, InputStream}
 import java.util.zip.GZIPOutputStream
+
 import com.rojoma.simplearm.v2.using
 
 class GZipCompressInputStream(val underlying: InputStream, pipeBufferSize: Int) extends InputStream {
   private val worker: Worker = new Worker(underlying, pipeBufferSize)
   worker.start()
 
-  override def read() = worker.read()
+  override def read(): Int = worker.read()
 
   override def read(bytes: Array[Byte], off: Int, len: Int): Int = {
     worker.read(bytes, off, len)
   }
 
-  override def close: Unit = {
+  override def close(): Unit = {
     worker.shutdown()
     underlying.close()
   }
