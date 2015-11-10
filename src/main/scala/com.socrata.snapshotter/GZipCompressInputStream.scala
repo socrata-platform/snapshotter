@@ -34,7 +34,7 @@ class GZipCompressInputStream(val underlying: InputStream, pipeBufferSize: Int) 
     override def run(): Unit = {
       try {
         using(new GZIPOutputStream(pipe, pipeBufferSize)) { compressor =>
-          val buffer: Array[Byte] = new Array(4096)
+          val buffer: Array[Byte] = new Array(pipeBufferSize)
           var count: Int = in.read(buffer)
 
           while (count != ReadFinished) {

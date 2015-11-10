@@ -17,7 +17,9 @@ object Snapshotter extends App {
 
       val server = new SocrataServerJetty(
         handler = handler,
-        options = SocrataServerJetty.defaultOptions.withPort(6800).withOnStop(BlobManager.shutdownManager)
+        options = SocrataServerJetty.defaultOptions.
+          withPort(SnapshotterConfig.port).
+          withOnStop(BlobManager.shutdownManager)
       )
 
       server.run()
