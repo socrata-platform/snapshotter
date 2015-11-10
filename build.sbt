@@ -22,9 +22,6 @@ val TestOptionNoTraces = "-oD"
 val TestOptionShortTraces = "-oDS"
 val TestOptionFullTraces = "-oDF"
 
-// stop assembly from failing on style errors
-com.socrata.sbtplugins.StylePlugin.StyleKeys.styleFailOnError in Compile := false
-
 testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, TestOptionNoTraces)
 
 enablePlugins(sbtbuildinfo.BuildInfoPlugin)

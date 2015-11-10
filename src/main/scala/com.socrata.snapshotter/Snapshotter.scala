@@ -12,14 +12,14 @@ object Snapshotter extends App {
       // client (returned from zookeeper) is configured for making requests to core (specified in config file)
       client <- broker.clientFor(SnapshotterConfig.client)
     } {
-      val router = Router(VersionService, SnapshotService(client).service, ListService)
+      val router = Router(VersionService, SnapshotService(client).service)
       val handler = router.route _
 
       val server = new SocrataServerJetty(
         handler = handler,
         options = SocrataServerJetty.defaultOptions.
           withPort(SnapshotterConfig.port).
-          withOnStop(BlobManager.shutdownManager)
+          withOnStop(BlobStoreManager.shutdownManager)
       )
 
       server.run()

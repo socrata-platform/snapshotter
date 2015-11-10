@@ -52,7 +52,7 @@ case class SnapshotService(client: CuratedServiceClient) extends SimpleResource 
     if (resp.resultCode == 200) {
       val now = new DateTime(DateTimeZone.forID("UTC"))
       using(new GZipCompressInputStream(resp.inputStream(), gzipBufferSize)) { inStream =>
-        upload(inStream, s"/$datasetId/$datasetId-$now.zip")
+        BlobStoreManager.upload(inStream, s"/$datasetId/$datasetId-$now.zip")
       }
     } else {
       Left(extractErrorMsg(resp))
@@ -71,18 +71,6 @@ case class SnapshotService(client: CuratedServiceClient) extends SimpleResource 
     msg
   }
 
-  def upload(inStream: InputStream, path: String): Either[JValue, UploadResult] = {
-    try {
-      Right(BlobManager.upload(inStream, path))
-    } catch {
-      case exception: AmazonS3Exception => Left(
-        json"""{ message: "Problem uploading to S3",
-                     error: ${exception.toString},
-                     "error code": ${exception.getErrorCode},
-                     "error type": ${exception.getErrorType},
-                     "error message": ${exception.getErrorMessage} }""")
-    }
-  }
 
   def service(datasetId: String): HttpService = {
     new SimpleResource {
