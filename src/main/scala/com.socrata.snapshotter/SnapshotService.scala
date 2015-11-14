@@ -1,6 +1,7 @@
 package com.socrata.snapshotter
 
-import java.io.InputStream
+import java.io.{FileOutputStream, InputStream}
+import java.nio.file.{StandardCopyOption, Files, Paths}
 
 import com.amazonaws.services.s3.model._
 import com.amazonaws.services.s3.transfer.model.UploadResult
@@ -22,7 +23,7 @@ import org.slf4j.LoggerFactory
 
 case class SnapshotService(client: CuratedServiceClient) extends SimpleResource {
   private val logger = LoggerFactory.getLogger(getClass)
-  private val gzipBufferSize = 4096
+  private val gzipBufferSize = 8 * 1024 * 1024
 
   def handleRequest(req: HttpRequest, datasetId: String): HttpResponse = {
 
@@ -32,7 +33,7 @@ case class SnapshotService(client: CuratedServiceClient) extends SimpleResource 
         addPaths(Seq("views", datasetId, "rows.csv")).
         addHeaders(host).
         addParameter("accessType" -> "DOWNLOAD").get
-      logger.info(csvReq.toString())
+      logger.debug(csvReq.toString())
       csvReq
     }
 
@@ -47,13 +48,21 @@ case class SnapshotService(client: CuratedServiceClient) extends SimpleResource 
     }
   }
 
-  def saveExport(datasetId: String): Response => Either[JValue, UploadResult] = { resp: Response =>
+  def saveExport(datasetId: String): Response => Either[JValue, CompleteMultipartUploadResult] = { resp: Response =>
 
     if (resp.resultCode == 200) {
       val now = new DateTime(DateTimeZone.forID("UTC"))
+
+//      val zipped = new GZipCompressInputStream(resp.inputStream(), gzipBufferSize)
+//      val chunked = new StreamChunker(zipped, gzipBufferSize)
+//      val tempFile = new FileOutputStream("/tmp/chunked.csv", false)
+//      chunked.foreach { case (chunk, _) => IOUtils.copy(chunk, tempFile) }
+//      Left(JString("Saved a file!"))
+
       using(new GZipCompressInputStream(resp.inputStream(), gzipBufferSize)) { inStream =>
-        BlobStoreManager.upload(inStream, s"$datasetId-$now.csv.gz")
-      }
+        logger.debug(s"About to start multipart request method with gzip buffer size $gzipBufferSize")
+        BlobStoreManager.multipartUpload(inStream, s"$datasetId-$now.csv.gz")
+       }
     } else {
       Left(extractErrorMsg(resp))
     }

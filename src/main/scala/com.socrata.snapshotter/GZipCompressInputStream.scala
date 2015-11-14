@@ -57,7 +57,7 @@ class GZipCompressInputStream(val underlying: InputStream, pipeBufferSize: Int) 
     }
 
     def read(bytes: Array[Byte], baseOff: Int, len: Int): Int = {
-      logger.info(s"Read called with length of: $len/${bytes.length}")
+      logger.debug(s"Read called with length of: $len/${bytes.length}")
 
       var byte = 0
       var i = baseOff
@@ -70,7 +70,7 @@ class GZipCompressInputStream(val underlying: InputStream, pipeBufferSize: Int) 
         }
       }
 
-      logger.info(s"Returning read after having read: ${i - baseOff}")
+      logger.debug(s"Returning read after having read: ${i - baseOff}")
       if (byte == ReadFinished && i == baseOff) ReadFinished else i - baseOff
     }
 
