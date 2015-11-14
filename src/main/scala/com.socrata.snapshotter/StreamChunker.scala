@@ -40,11 +40,13 @@ class StreamChunker(inStream: InputStream, bufferSize: Int) extends Iterator[(By
 
     val needsIndex = notEmpty.map { s =>
       val (is, size) = s.head
-      val last = s.tail.isEmpty
+//      val last = s.tail.isEmpty
+      val last = false
       (is, size, last)
     }
 
     needsIndex.zipWithIndex.map { case ((is, size, last), index) =>
+      logger.debug("Creating chunk#{} with size of {}", index + 1, size)
       new Chunk(is, size, last, index + 1)
     }
   }

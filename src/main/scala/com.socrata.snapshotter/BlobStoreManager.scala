@@ -60,26 +60,14 @@ object BlobStoreManager {
       logger.debug("Create stream chunker")
       val chunker = new StreamChunker(inStream, uploadPartSize)
 
-      //      val partReqs: Iterator[UploadPartRequest] = chunker.chunks.map { chunk => new UploadPartRequest().
-      //          withBucketName(SnapshotterConfig.awsBucketName).
-      //          withUploadId(uploadId).
-      //          withKey(path).
-      //          withInputStream(chunk.inputStream).
-      //          withPartSize(chunk.size).
-      //          withPartNumber(chunk.partNumber).
-      //          withLastPart(chunk.isLast)
-      //      }
-
-      val partReqs: Iterator[UploadPartRequest] = chunker.zipWithIndex.map { case ((inputStream, size), index) =>
-        val partNumber = index + 1
-
-        new UploadPartRequest().
-          withBucketName(SnapshotterConfig.awsBucketName).
-          withUploadId(uploadId).
-          withKey(path).
-          withInputStream(inputStream).
-          withPartSize(size).
-          withPartNumber(partNumber)
+      val partReqs: Iterator[UploadPartRequest] = chunker.chunks.map { chunk => new UploadPartRequest().
+        withBucketName(SnapshotterConfig.awsBucketName).
+        withUploadId(uploadId).
+        withKey(path).
+        withInputStream(chunk.inputStream).
+        withPartSize(chunk.size).
+        withPartNumber(chunk.partNumber) //.
+//        withLastPart(chunk.isLast)
       }
 
       val uploadPartTags = partReqs.map { req =>
