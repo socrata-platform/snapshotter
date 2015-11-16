@@ -9,8 +9,7 @@ import com.amazonaws.services.s3.transfer.TransferManager
 import com.amazonaws.services.s3.transfer.model.UploadResult
 
 import com.rojoma.json.v3.interpolation._
-import com.rojoma.json.v3.ast.{JValue, JString}
-
+import com.rojoma.json.v3.ast.JValue
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
@@ -30,13 +29,13 @@ object BlobStoreManager {
   def upload(inStream: InputStream, path: String): Either[JValue, UploadResult] = {
     try {
       val req = new PutObjectRequest(SnapshotterConfig.awsBucketName, s"$path", inStream, new ObjectMetadata())
-      logger.info(s"Sending put request to s3: $req")
+      logger.debug(s"Sending put request to s3: $req")
       val upload = manager.upload(req)
 
       upload.addProgressListener(new LoggingListener(logger))
 
       val uploadResult = upload.waitForUploadResult()
-      logger.info(s"uploadResult: $uploadResult")
+      logger.debug(s"uploadResult: $uploadResult")
       Right(uploadResult)
     } catch {
       case exception: AmazonS3Exception => Left(
@@ -59,13 +58,15 @@ object BlobStoreManager {
 
     val snapshots: Seq[JValue] =
       objectSummaries.map( sum => {
-        logger.info(s"key: ${sum.getKey}")
-        val nameDate = parseKey(sum.getKey)
-        json"""{ name: ${nameDate._1},
-                 date: ${nameDate._2},
-                 size: ${sum.getSize} }"""})
+        val key = sum.getKey
+        logger.debug(s"Found key: ${key}")
+        val (datasetId, date) = parseKey(key)
+        json"""{ key:       ${sum.getKey},
+                 datasetId: ${datasetId},
+                 date:      ${date},
+                 size:      ${sum.getSize} }"""})
 
-    json"""{datasetId: $path, count: ${snapshots.length}, snapshots: $snapshots }"""
+    json"""{ "search prefix": $path, count: ${snapshots.length}, snapshots: $snapshots }"""
   }
 
   def parseKey(keyName: String): (String, String) = {

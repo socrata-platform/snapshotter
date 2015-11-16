@@ -1,7 +1,5 @@
 package com.socrata.snapshotter
 
-import com.amazonaws.services.s3.AmazonS3Client
-import com.amazonaws.services.s3.model.{S3ObjectSummary, ListObjectsRequest}
 import com.rojoma.json.v3.ast.JValue
 import com.socrata.curator.CuratedServiceClient
 import com.socrata.http.server.{HttpResponse, HttpRequest, HttpService}
@@ -12,8 +10,6 @@ import com.socrata.http.server.routing.SimpleResource
 
 import org.slf4j.LoggerFactory
 
-
-
 case class ListService(client: CuratedServiceClient) extends SimpleResource {
   private val logger = LoggerFactory.getLogger(getClass)
 
@@ -21,8 +17,8 @@ case class ListService(client: CuratedServiceClient) extends SimpleResource {
     new SimpleResource {
       override def get: HttpService = req =>
         handleRequest(req, datasetId)
-      }
     }
+  }
 
   def handleRequest(req: HttpRequest, datasetId: String): HttpResponse = {
     val resp = requestList(datasetId)
