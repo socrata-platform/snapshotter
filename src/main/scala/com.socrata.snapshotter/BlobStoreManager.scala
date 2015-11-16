@@ -18,9 +18,6 @@ object BlobStoreManager {
   private lazy val s3client = new AmazonS3Client()
   private lazy val manager = new TransferManager(s3client)
   private val logger = LoggerFactory.getLogger(getClass)
-  private val datasetIdLength = 9
-  private val fileExtensionLength = 7
-  //.csv.gz
   private val uploadPartSize = 8 * 1024 * 1024
 
   def shutdownManager(): Unit = {
@@ -122,8 +119,8 @@ object BlobStoreManager {
   }
 
   def parseKey(keyName: String): (String, String) = {
-    val datasetId = keyName.slice(0, datasetIdLength)
-    val timestamp = keyName.slice(datasetIdLength + 1, keyName.length - fileExtensionLength - 1)
+    val pattern = "(^....-....)-(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.?\\d*Z)\\.csv\\.gz".r
+    val pattern(datasetId, timestamp) = keyName
     (datasetId, timestamp)
   }
 

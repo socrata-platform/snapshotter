@@ -12,7 +12,7 @@ object Snapshotter extends App {
       // client (returned from zookeeper) is configured for making requests to core (specified in config file)
       client <- broker.clientFor(SnapshotterConfig.client)
     } {
-      val router = Router(VersionService, SnapshotService(client).service, ListService(client).service)
+      val router = Router(VersionService, SnapshotService(client).service, ListService.service)
       val handler = router.route _
 
       val server = new SocrataServerJetty(
