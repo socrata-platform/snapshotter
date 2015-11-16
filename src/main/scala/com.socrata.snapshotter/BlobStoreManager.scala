@@ -18,8 +18,6 @@ object BlobStoreManager {
   private lazy val s3client = new AmazonS3Client()
   private lazy val manager = new TransferManager(s3client)
   private val logger = LoggerFactory.getLogger(getClass)
-  private val datasetIdLength = 9
-  private val fileExtensionLength = 7 //.csv.gz
 
   def shutdownManager(): Unit = {
     logger.info("Shutting down transfer manager.")
@@ -60,18 +58,18 @@ object BlobStoreManager {
       objectSummaries.map( sum => {
         val key = sum.getKey
         logger.debug(s"Found key: ${key}")
-        val (datasetId, date) = parseKey(key)
+        val (datasetId, timestamp) = parseKey(key)
         json"""{ key:       ${sum.getKey},
                  datasetId: ${datasetId},
-                 date:      ${date},
+                 date:      ${timestamp},
                  size:      ${sum.getSize} }"""})
 
     json"""{ "search prefix": $path, count: ${snapshots.length}, snapshots: $snapshots }"""
   }
 
   def parseKey(keyName: String): (String, String) = {
-    val datasetId = keyName.slice(0,datasetIdLength)
-    val timestamp = keyName.slice(datasetIdLength + 1, keyName.length - fileExtensionLength - 1 )
+    val pattern = "(^....-....)-(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.?\\d*Z)\\.csv\\.gz".r
+    val pattern(datasetId, timestamp) = keyName
     (datasetId, timestamp)
   }
 
