@@ -103,15 +103,16 @@ object BlobStoreManager {
     val objectSummaries: Seq[S3ObjectSummary] = objectListing.getObjectSummaries.asScala
 
     val snapshots: Seq[JValue] =
-      objectSummaries.map(sum => {
-        logger.debug(s"key: ${sum.getKey}")
-        val nameDate = parseKey(sum.getKey)
-        json"""{ name: ${nameDate._1},
-                 date: ${nameDate._2},
-                 size: ${sum.getSize} }"""
-      })
+      objectSummaries.map( sum => {
+        val key = sum.getKey
+        logger.debug(s"Found key: ${key}")
+        val (datasetId, timestamp) = parseKey(key)
+        json"""{ key:       ${sum.getKey},
+                 datasetId: ${datasetId},
+                 date:      ${timestamp},
+                 size:      ${sum.getSize} }"""})
 
-    json"""{datasetId: $path, count: ${snapshots.length}, snapshots: $snapshots }"""
+    json"""{ "search prefix": $path, count: ${snapshots.length}, snapshots: $snapshots }"""
   }
 
   def abortMultiPartUploads(): Unit = {
