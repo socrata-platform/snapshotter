@@ -10,7 +10,7 @@ import com.socrata.http.server.routing.SimpleResource
 
 import org.slf4j.LoggerFactory
 
-case class ListService(client: CuratedServiceClient) extends SimpleResource {
+object ListService extends SimpleResource {
   private val logger = LoggerFactory.getLogger(getClass)
 
   def service(datasetId: String): HttpService = {
