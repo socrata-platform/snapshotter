@@ -47,7 +47,6 @@ object BlobStoreManager {
                      "error type": ${exception.getErrorType},
                      "error message": ${exception.getErrorMessage} }""")
     }
-
   }
 
   def multipartUpload(inStream: InputStream, path: String): Either[JValue, CompleteMultipartUploadResult] = {
@@ -56,35 +55,13 @@ object BlobStoreManager {
       logger.debug("Initiate multipart upload")
       val initResult = s3client.initiateMultipartUpload(new InitiateMultipartUploadRequest(SnapshotterConfig.awsBucketName, path))
       val uploadId = initResult.getUploadId
-
-      logger.debug("Create stream chunker")
-      val chunker = new StreamChunker(inStream, uploadPartSize)
-
-      val partReqs: Iterator[UploadPartRequest] = chunker.chunks.map { chunk => new UploadPartRequest().
-        withBucketName(SnapshotterConfig.awsBucketName).
-        withUploadId(uploadId).
-        withKey(path).
-        withInputStream(chunk.inputStream).
-        withPartSize(chunk.size).
-        withPartNumber(chunk.partNumber) //.
-//        withLastPart(chunk.isLast)
-      }
-
-      val uploadPartTags = partReqs.map { req =>
-        logger.debug(s"Request upload of part {}", req.getPartNumber)
-
-        if (req.isLastPart) {
-          logger.debug("About to make request of final part.")
-        }
-
-        val partResp = s3client.uploadPart(req)
-
-        partResp.getPartETag
-      }.toList
+      val partReqs = createRequests(initResult.getUploadId, path, inStream)
+      // make sure to send s3 a mutable java list
+      val uploadPartTags = new java.util.ArrayList(sendRequests(partReqs).asJava)
 
       logger.debug("Requesting to complete multipart upload")
       Right(s3client.completeMultipartUpload(
-        new CompleteMultipartUploadRequest(SnapshotterConfig.awsBucketName, path, uploadId, new java.util.ArrayList(uploadPartTags.asJava))))
+        new CompleteMultipartUploadRequest(SnapshotterConfig.awsBucketName, path, uploadId, uploadPartTags)))
     } catch {
       case exception: AmazonS3Exception =>
         val msg =
@@ -95,6 +72,28 @@ object BlobStoreManager {
                        "error message": ${exception.getErrorMessage} }"""
         logger.warn(msg.toString())
         Left(msg)
+    }
+  }
+
+  def sendRequests(partReqs: Iterator[UploadPartRequest]): List[PartETag] = {
+    partReqs.map { req =>
+      logger.debug(s"Requesting to upload part {}", req.getPartNumber)
+      val partResp = s3client.uploadPart(req)
+      partResp.getPartETag
+    }.toList
+  }
+
+  def createRequests(uploadId: String, path: String, inStream: InputStream): Iterator[UploadPartRequest] = {
+    logger.debug("Create stream chunker")
+    val chunker = new StreamChunker(inStream, uploadPartSize)
+
+    chunker.chunks.map { chunk => new UploadPartRequest().
+      withBucketName(SnapshotterConfig.awsBucketName).
+      withUploadId(uploadId).
+      withKey(path).
+      withInputStream(chunk.inputStream).
+      withPartSize(chunk.size).
+      withPartNumber(chunk.partNumber)
     }
   }
 
