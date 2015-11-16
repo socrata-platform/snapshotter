@@ -18,6 +18,12 @@ libraryDependencies ++= Seq(
   "org.apache.curator"         % "curator-x-discovery"     % "2.8.0"
 )
 
+// Test dependencies
+
+libraryDependencies ++= Seq(
+  "org.mockito"               % "mockito-core"             %"1.10.19" % "test"
+)
+
 val TestOptionNoTraces = "-oD"
 val TestOptionShortTraces = "-oDS"
 val TestOptionFullTraces = "-oDF"
