@@ -10,7 +10,8 @@ import com.socrata.http.server.util.handlers.{LoggingOptions, NewLoggingHandler}
 import org.slf4j.LoggerFactory
 
 case class Router(versionService: HttpService,
-                  snapshotService: (String) => HttpService) {
+                  snapshotService: (String) => HttpService,
+                  listService: (String) => HttpService) {
 
   private val logger = LoggerFactory.getLogger(getClass)
   private val logWrapper =
@@ -18,7 +19,8 @@ case class Router(versionService: HttpService,
 
   val routes = Routes(
     Route("/version", versionService),
-    Route("/snapshot/{String}", snapshotService)
+    Route("/snapshot/{String}", snapshotService),
+    Route("/list/{String}", listService)
   )
 
   def notFound(req: HttpRequest): HttpResponse = {

@@ -52,7 +52,7 @@ case class SnapshotService(client: CuratedServiceClient) extends SimpleResource 
     if (resp.resultCode == 200) {
       val now = new DateTime(DateTimeZone.forID("UTC"))
       using(new GZipCompressInputStream(resp.inputStream(), gzipBufferSize)) { inStream =>
-        BlobStoreManager.upload(inStream, s"/$datasetId/$datasetId-$now.zip")
+        BlobStoreManager.upload(inStream, s"$datasetId-$now.csv.gz")
       }
     } else {
       Left(extractErrorMsg(resp))
