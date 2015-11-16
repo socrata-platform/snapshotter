@@ -35,23 +35,14 @@ class StreamChunker(inStream: InputStream, bufferSize: Int) extends Iterator[(By
   }
 
   def chunks: Iterator[Chunk] = {
-    val tails: Iterator[Stream[(ByteArrayInputStream, Int)]] = this.toStream.tails
-    val notEmpty = tails.filterNot(_.isEmpty)
-
-    val needsIndex = notEmpty.map { s =>
-      val (is, size) = s.head
-//      val last = s.tail.isEmpty
-      val last = false
-      (is, size, last)
-    }
-
-    needsIndex.zipWithIndex.map { case ((is, size, last), index) =>
-      logger.debug("Creating chunk#{} with size of {}", index + 1, size)
-      new Chunk(is, size, last, index + 1)
+    this.zipWithIndex.map { case ((stream, streamSize), index) =>
+      logger.debug("Creating chunk#{} with size of {}", index + 1, streamSize)
+      new Chunk(stream, streamSize, index + 1)
     }
   }
+
 }
 
 object StreamChunker {
-  case class Chunk(inputStream: InputStream, size: Int, isLast: Boolean, partNumber: Int)
+  case class Chunk(inputStream: InputStream, size: Int, partNumber: Int)
 }
