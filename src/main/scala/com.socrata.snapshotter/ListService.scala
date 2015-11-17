@@ -1,7 +1,6 @@
 package com.socrata.snapshotter
 
 import com.rojoma.json.v3.ast.JValue
-import com.socrata.curator.CuratedServiceClient
 import com.socrata.http.server.{HttpResponse, HttpRequest, HttpService}
 
 import com.socrata.http.server.responses._
