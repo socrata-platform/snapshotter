@@ -11,7 +11,7 @@ class StreamChunker(inStream: InputStream, bufferSize: Int) extends Iterator[(By
   val buffer = new Array[Byte](bufferSize)
   private val logger = LoggerFactory.getLogger(getClass)
 
-  def hasNext = {
+  def hasNext: Boolean = {
     // if the last thing has been read out
     if (chunkSize.isEmpty) {
       val sizeRead = inStream.read(buffer)

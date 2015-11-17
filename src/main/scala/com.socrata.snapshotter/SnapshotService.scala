@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory
 
 case class SnapshotService(client: CuratedServiceClient) extends SimpleResource {
   private val logger = LoggerFactory.getLogger(getClass)
-  private val gzipBufferSize = 8 * 1024 * 1024
+  private val gzipBufferSize = SnapshotterConfig.gzipBufferSize
 
   def handleRequest(req: HttpRequest, datasetId: String): HttpResponse = {
 
@@ -60,7 +60,7 @@ case class SnapshotService(client: CuratedServiceClient) extends SimpleResource 
 //      Left(JString("Saved a file!"))
 
       using(new GZipCompressInputStream(resp.inputStream(), gzipBufferSize)) { inStream =>
-        logger.debug(s"About to start multipart request method with gzip buffer size $gzipBufferSize")
+        logger.info(s"About to start multipart upload request for dataset $datasetId")
         BlobStoreManager.multipartUpload(inStream, s"$datasetId-$now.csv.gz")
        }
     } else {

@@ -18,7 +18,7 @@ object BlobStoreManager {
   private lazy val s3client = new AmazonS3Client()
   private lazy val manager = new TransferManager(s3client)
   private val logger = LoggerFactory.getLogger(getClass)
-  private val uploadPartSize = 8 * 1024 * 1024
+  private val uploadPartSize = SnapshotterConfig.uploadPartSize
 
   def shutdownManager(): Unit = {
     logger.debug("Shutting down transfer manager.")
@@ -50,7 +50,8 @@ object BlobStoreManager {
     logger.debug(s"Upload part size set at: $uploadPartSize")
     try {
       logger.debug("Initiate multipart upload")
-      val initResult = s3client.initiateMultipartUpload(new InitiateMultipartUploadRequest(SnapshotterConfig.awsBucketName, path))
+      val initResult = s3client.initiateMultipartUpload(
+        new InitiateMultipartUploadRequest(SnapshotterConfig.awsBucketName, path))
       val uploadId = initResult.getUploadId
       val partReqs = createRequests(initResult.getUploadId, path, inStream)
       // make sure to send s3 a mutable java list
@@ -94,7 +95,7 @@ object BlobStoreManager {
     }
   }
 
-  // TODO: account for possibility of truncated results (although not a problem in testing, as first 1000 results return)
+  // TODO: account for possibility of truncated results (not a problem in testing, as first 1000 results return)
   def listObjects(bucketName: String, path: String): JValue = {
     logger.debug("Requesting a list...")
     s3client.listObjects(SnapshotterConfig.awsBucketName, path)
@@ -121,14 +122,21 @@ object BlobStoreManager {
 
   def parseKey(keyName: String): (String, String) = {
     val pattern = "(^....-....)-(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.?\\d*Z)\\.csv\\.gz".r
-    val pattern(datasetId, timestamp) = keyName
-    (datasetId, timestamp)
+    try {
+      val pattern(datasetId, timestamp) = keyName
+      (datasetId, timestamp)
+    } catch {
+      case e:MatchError => {
+        ("Unable to parse datasetId from key name", "Unable to parse snapshot date from key name")
+      }
+    }
+
   }
 
   class LoggingListener(private val logger: org.slf4j.Logger) extends ProgressListener {
     def progressChanged(event: ProgressEvent): Unit = {
       if (event.getEventType == com.amazonaws.event.ProgressEventType.TRANSFER_COMPLETED_EVENT) {
-        logger.debug("Upload complete.")
+        logger.info("Upload complete.")
       }
       logger.debug(s"Transferred bytes: ${event.getBytesTransferred}")
       logger.debug(s"Progress event type: ${event.getEventType}")
