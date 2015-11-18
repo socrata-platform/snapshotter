@@ -15,10 +15,9 @@ import org.scalatest.MustMatchers
 class VersionServiceTest extends FunSuite with MustMatchers with MockitoSugar {
   test("Endpoint returns a version") {
     val req = mock[HttpRequest]
-    val resp = mock[HttpServletResponse]
-    val os = new ByteServletOutputStream
+    val os = new ByteArrayServletOutputStream
+    val resp = os.responseFor
 
-    when(resp.getOutputStream).thenReturn(os)
     VersionService.get(req)(resp)
 
     verify(resp).setStatus(200)
@@ -27,16 +26,4 @@ class VersionServiceTest extends FunSuite with MustMatchers with MockitoSugar {
     os.getString.toLowerCase must include ("version")
 
   }
-}
-
-class ByteServletOutputStream extends ServletOutputStream {
-  val underlying: ByteArrayOutputStream = new ByteArrayOutputStream()
-  override def isReady: Boolean = true
-
-  override def setWriteListener(writeListener: WriteListener): Unit = {}
-
-  override def write(b: Int): Unit = underlying.write(b)
-
-  def getString: String = new String(underlying.toByteArray, UTF_8)
-
 }

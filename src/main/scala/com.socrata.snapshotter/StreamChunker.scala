@@ -42,7 +42,7 @@ class StreamChunker(inStream: InputStream, bufferSize: Int) extends Iterator[(By
       new Chunk(stream, streamSize, index + 1)
     }
   }
-
+  
   // Read from the input stream until the buffer is completely filled (or stream is finished)
   private def readToCapacity(input: InputStream, buffer: Array[Byte]): Int = {
 
