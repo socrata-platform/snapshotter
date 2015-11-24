@@ -53,6 +53,7 @@ case class SnapshotService(client: CuratedServiceClient) extends SimpleResource 
     if (resp.resultCode == 200) {
       val now = new DateTime(DateTimeZone.forID("UTC"))
 
+//      Debug by downloading a file locally
 //      val zipped = new GZipCompressInputStream(resp.inputStream(), gzipBufferSize)
 //      val chunked = new StreamChunker(zipped, gzipBufferSize)
 //      val tempFile = new FileOutputStream("/tmp/chunked.csv.gz", false)
