@@ -57,21 +57,30 @@ class GZipCompressInputStream(val underlying: InputStream, pipeBufferSize: Int) 
     }
 
     def read(bytes: Array[Byte], baseOff: Int, len: Int): Int = {
-      logger.debug(s"Read called with length of: $len/${bytes.length}")
 
-      var byte = 0
-      var i = baseOff
-
-      while (i < len && byte != ReadFinished) {
-        byte = read()
-        if (byte != ReadFinished) {
-          bytes(i) = byte.toByte
-          i += 1
-        }
+      def loop(bytes: Array[Byte], loopOffest: Int, len: Int): Int = {
+        logger.debug("Loop called inside read, byte array length: {}", bytes.length)
+        logger.debug("offset: {}, length limit: {}", loopOffest, len)
+        val bytesRead = compressed.read(bytes, loopOffest, len)
+        val newOffset = loopOffest + bytesRead
+        val newLen = len - bytesRead
+        val delta = if (bytesRead != ReadFinished && newLen != 0) loop(bytes, newOffset, newLen) else 0
+        if (bytesRead > 0) bytesRead + delta else delta
       }
 
-      logger.debug(s"Returning read after having read: ${i - baseOff}")
-      if (byte == ReadFinished && i == baseOff) ReadFinished else i - baseOff
+      logger.debug("Read called, byte array length: {}", bytes.length)
+      logger.debug("offset: {}, length limit: {}", baseOff, len)
+      val bytesRead = compressed.read(bytes, baseOff, len)
+
+      if (bytesRead == ReadFinished) {
+        ReadFinished
+      } else {
+        val offset = baseOff + bytesRead
+        val newLen = len - bytesRead
+        val loopTotal = if (bytesRead != ReadFinished && newLen != 0) loop(bytes, offset, newLen) else 0
+        logger.debug("Returning gzip read with loopTotal: {} and bytesRead: {}", loopTotal, bytesRead)
+        loopTotal + bytesRead
+      }
     }
 
     def shutdown(): Unit = {
