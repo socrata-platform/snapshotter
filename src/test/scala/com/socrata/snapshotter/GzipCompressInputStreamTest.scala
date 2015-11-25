@@ -30,7 +30,7 @@ class GzipCompressInputStreamTest extends FunSuite {
        val unzippedStream = new GZIPInputStream(zippedStream)
      } catch{
        case _: java.util.zip.ZipException =>
-         assert(false, "Gzip did not provide a Gzip formatted input stream")
+         assert(false, "Expected a Gzip formatted input stream")
      }
      assert(true)
    }
