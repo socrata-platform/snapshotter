@@ -57,21 +57,9 @@ class GZipCompressInputStream(val underlying: InputStream, pipeBufferSize: Int) 
     }
 
     def read(bytes: Array[Byte], baseOff: Int, len: Int): Int = {
-      logger.debug(s"Read called with length of: $len/${bytes.length}")
-
-      var byte = 0
-      var i = baseOff
-
-      while (i < len && byte != ReadFinished) {
-        byte = read()
-        if (byte != ReadFinished) {
-          bytes(i) = byte.toByte
-          i += 1
-        }
-      }
-
-      logger.debug(s"Returning read after having read: ${i - baseOff}")
-      if (byte == ReadFinished && i == baseOff) ReadFinished else i - baseOff
+      val res = compressed.read(bytes, baseOff, len)
+      if (res == ReadFinished && pendingException.isDefined) throw pendingException.get
+      res
     }
 
     def shutdown(): Unit = {

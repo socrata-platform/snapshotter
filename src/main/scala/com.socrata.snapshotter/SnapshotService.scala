@@ -1,6 +1,6 @@
 package com.socrata.snapshotter
 
-import java.io.{FileOutputStream, InputStream}
+import java.io.{ByteArrayInputStream, FileOutputStream, InputStream}
 import java.nio.file.{StandardCopyOption, Files, Paths}
 
 import com.amazonaws.services.s3.model._
@@ -53,9 +53,10 @@ case class SnapshotService(client: CuratedServiceClient) extends SimpleResource 
     if (resp.resultCode == 200) {
       val now = new DateTime(DateTimeZone.forID("UTC"))
 
+//      Debug by downloading a file locally
 //      val zipped = new GZipCompressInputStream(resp.inputStream(), gzipBufferSize)
 //      val chunked = new StreamChunker(zipped, gzipBufferSize)
-//      val tempFile = new FileOutputStream("/tmp/chunked.csv", false)
+//      val tempFile = new FileOutputStream("/tmp/chunked.csv.gz", false)
 //      chunked.foreach { case (chunk, _) => IOUtils.copy(chunk, tempFile) }
 //      Left(JString("Saved a file!"))
 
