@@ -1,8 +1,8 @@
 package com.socrata.snapshotter
 
 import com.rojoma.json.v3.ast.JValue
-import com.socrata.http.server.{HttpResponse, HttpRequest, HttpService}
 
+import com.socrata.http.server.{HttpResponse, HttpRequest, HttpService}
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.routing.SimpleResource
@@ -25,7 +25,7 @@ object ListService extends SimpleResource {
   }
 
   def requestList(datasetId: String): JValue = {
-    BlobStoreManager.listObjects(SnapshotterConfig.awsBucketName, datasetId)
+    BlobStoreManager.listObjects(datasetId)
   }
 
 }

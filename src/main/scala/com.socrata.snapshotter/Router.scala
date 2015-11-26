@@ -11,7 +11,8 @@ import org.slf4j.LoggerFactory
 
 case class Router(versionService: HttpService,
                   snapshotService: (String) => HttpService,
-                  listService: (String) => HttpService) {
+                  listService: (String) => HttpService,
+                   retrievalService: (String) => HttpService) {
 
   private val logger = LoggerFactory.getLogger(getClass)
   private val logWrapper =
@@ -20,7 +21,8 @@ case class Router(versionService: HttpService,
   val routes = Routes(
     Route("/version", versionService),
     Route("/snapshot/{String}", snapshotService),
-    Route("/list/{String}", listService)
+    Route("/list/{String}", listService),
+    Route("/export/{String}", retrievalService)
   )
 
   def notFound(req: HttpRequest): HttpResponse = {
