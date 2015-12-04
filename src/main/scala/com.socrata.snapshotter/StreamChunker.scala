@@ -29,7 +29,7 @@ class StreamChunker(inStream: InputStream, bufferSize: Int) extends Iterator[(By
     val returnSize = chunkSize.get
     logger.debug("Returning next chunk stream, size: {}", returnSize)
     logger.debug("This chunk is greater than 5 MB: {}", returnSize > (5 * 1024 * 1024))
-    val chunkStream = new ByteArrayInputStream(buffer, 0, chunkSize.get)
+    val chunkStream = new ByteArrayInputStream(buffer.slice(0, chunkSize.get))
     chunkSize = None
     (chunkStream, returnSize)
   }
@@ -57,7 +57,7 @@ class StreamChunker(inStream: InputStream, bufferSize: Int) extends Iterator[(By
     logger.debug("readToCapacity called, byte array length: {}", buffer.length)
     val bytesRead = input.read(buffer)
 
-    // if the very first read attempt returns -1, we return -1. otherwise we need to return the bytesRead
+    // if the very first read attempt returns -1, we return None. Otherwise we need to return the bytesRead
     if (bytesRead == ReadFinished) {
       logger.debug("Returning readToCapacity with -1, finished reading input stream")
       None

@@ -2,6 +2,7 @@ package com.socrata.snapshotter
 
 import java.io.{ByteArrayOutputStream, ByteArrayInputStream}
 
+import com.socrata.snapshotter.StreamChunker.Chunk
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{MustMatchers, FunSuite}
 
@@ -59,6 +60,21 @@ class StreamChunkerTest extends FunSuite with MustMatchers with MockitoSugar {
     assert(outBytes.sameElements(inputBytes))
   }
 
+  test("you can read data from multiple chunks out of order") {
+    val (sc, inputBytes) = getChunker(12, 6)
+    val ba1 = new Array[Byte](6)
+    val ba2 = new Array[Byte](6)
+    val chunks = sc.chunks
+    val chunk1 = chunks.next()
+    val chunk2 = chunks.next()
+    chunk2.inputStream.read(ba2)
+    chunk1.inputStream.read(ba1)
+    assert(inputBytes.sameElements(ba1 ++ ba2))
+  }
+
+  /* this class is used to test read_to_capacity.
+  It simulates the fact that, which larger buffer sizes, read(buffer) doesn't always completely fill the buffer,
+  even when there is more data available. */
   class SingleByteStream(val bytes: Array[Byte]) extends ByteArrayInputStream(bytes) {
     override def read(output: Array[Byte], offset: Int, len: Int): Int = {
       val byte = this.read()
