@@ -12,7 +12,7 @@ To build the image, run:
 ```
 cd .. # Change to project root.
 sbt assembly
-cp target/scala-2.11/snapshotter-assembly-0.0.1-SNAPSHOT.jar docker/snapshotter-assembly.jar
+cp target/scala-2.11/snapshotter-assembly-*.jar docker/snapshotter-assembly.jar
 docker build -t snapshotter docker
 ```
 
