@@ -1,0 +1,12 @@
+com.socrata {
+  # List of zookeeper hosts
+  common-zk-ensemble = {{ ZOOKEEPER_ENSEMBLE }}
+
+  aws {
+    bucket-name = {{ AWS_BUCKET }}
+  }
+
+  broker {
+    ensemble = {{ ZOOKEEPER_ENSEMBLE }}
+  }
+}
