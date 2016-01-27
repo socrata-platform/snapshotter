@@ -25,7 +25,7 @@ case class SnapshotService(client: CuratedServiceClient) extends SimpleResource 
   private val logger = LoggerFactory.getLogger(getClass)
   private val gzipBufferSize = SnapshotterConfig.gzipBufferSize
 
-  def handleRequest(req: HttpRequest, datasetId: String): HttpResponse = {
+  def handleSnapshotRequest(req: HttpRequest, datasetId: String): HttpResponse = {
 
     val makeReq: RequestBuilder => SimpleHttpRequest = { base =>
       val host = req.header("X-Socrata-Host").map("X-Socrata-Host" -> _)
@@ -82,10 +82,28 @@ case class SnapshotService(client: CuratedServiceClient) extends SimpleResource 
   }
 
 
-  def service(datasetId: String): HttpService = {
-    new SimpleResource {
-      override def get: HttpService = req =>
-          handleRequest(req, datasetId)
+  def handleFetchRequest(req: HttpRequest, datasetId: String, snapshotName: String): HttpResponse = {
+    BlobStoreManager.fetch(s"$datasetId/$snapshotName", req.resourceScope) match {
+      case Some(s3Object) =>
+        ContentLength(s3Object.getObjectMetadata.getContentLength) ~> Stream { out =>
+          IOUtils.copy(s3Object.getObjectContent, out)
+        }
+      case None =>
+        NotFound
     }
   }
+
+  def takeSnapshotService(datasetId: String): HttpService = {
+    new SimpleResource {
+      override def get: HttpService = req =>
+          handleSnapshotRequest(req, datasetId)
+      override def post: HttpService = req =>
+          handleSnapshotRequest(req, datasetId)
+    }
+  }
+
+  def fetchSnapshotService(datasetId: String, snapshotName: String): HttpService =
+    new SimpleResource {
+      override def get: HttpService = handleFetchRequest(_, datasetId, snapshotName)
+    }
 }

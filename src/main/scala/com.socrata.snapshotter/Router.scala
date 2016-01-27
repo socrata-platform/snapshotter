@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory
 
 case class Router(versionService: HttpService,
                   snapshotService: (String) => HttpService,
+                  snapshotServingService: (String, String) => HttpService,
                   listService: (String) => HttpService) {
 
   private val logger = LoggerFactory.getLogger(getClass)
@@ -20,6 +21,7 @@ case class Router(versionService: HttpService,
   val routes = Routes(
     Route("/version", versionService),
     Route("/snapshot/{String}", snapshotService),
+    Route("/snapshot/{String}/{String}", snapshotServingService),
     Route("/list/{String}", listService)
   )
 
