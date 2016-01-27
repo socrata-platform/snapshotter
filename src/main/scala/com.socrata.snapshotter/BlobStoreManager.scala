@@ -12,6 +12,7 @@ import com.amazonaws.services.s3.transfer.TransferManager
 import com.amazonaws.services.s3.transfer.model.UploadResult
 import com.rojoma.json.v3.interpolation._
 import com.rojoma.json.v3.ast.JValue
+import com.rojoma.simplearm.v2._
 import org.slf4j.LoggerFactory
 
 object BlobStoreManager {
@@ -96,6 +97,14 @@ object BlobStoreManager {
         Left(msg)
     }
   }
+
+  def fetch(path: String, resourceScope: ResourceScope): Option[S3Object] =
+    try {
+      Some(resourceScope.open(retrying(s3client.getObject(SnapshotterConfig.awsBucketName, path))))
+    } catch {
+      case e: AmazonS3Exception if e.getStatusCode == 404 =>
+        None
+    }
 
   def sendRequests(partReqs: Iterator[UploadPartRequest]): List[PartETag] = {
     partReqs.map { req =>
