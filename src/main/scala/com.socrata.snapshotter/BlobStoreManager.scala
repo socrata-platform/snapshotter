@@ -25,6 +25,26 @@ object BlobStoreManager {
     manager.shutdownNow()
   }
 
+  private def retrying[T](op: =>T): T = {
+    val retryLimit = 4
+    def loop(retryCount: Int, retryDelay: Int): T = {
+      try {
+        op
+      } catch {
+        case e: AmazonS3Exception if e.getStatusCode == 503 || e.getStatusCode == 500 =>
+          // sometimes AWS returns 503s or 500s for perfectly good requests; we'll
+          // treat them as transient failures and retry the opeartion
+          if(retryCount < retryLimit) {
+            Thread.sleep(retryDelay)
+            loop(retryCount + 1, retryDelay * 2)
+          } else {
+            throw e
+          }
+      }
+    }
+    loop(0, 100) // max total sleep time = 3.1s
+  }
+
   def upload(inStream: InputStream, path: String): Either[JValue, UploadResult] = {
     try {
       val req = new PutObjectRequest(SnapshotterConfig.awsBucketName, path, inStream, new ObjectMetadata())
@@ -50,16 +70,20 @@ object BlobStoreManager {
     logger.debug(s"Upload part size set at: $uploadPartSize")
     try {
       logger.debug("Initiate multipart upload")
-      val initResult = s3client.initiateMultipartUpload(
-        new InitiateMultipartUploadRequest(SnapshotterConfig.awsBucketName, path))
+      val initResult = retrying {
+          s3client.initiateMultipartUpload(
+            new InitiateMultipartUploadRequest(SnapshotterConfig.awsBucketName, path))
+        }
       val uploadId = initResult.getUploadId
       val partReqs = createRequests(initResult.getUploadId, path, inStream)
       // make sure to send s3 a mutable java list
       val uploadPartTags = new java.util.ArrayList(sendRequests(partReqs).asJava)
 
       logger.debug("Requesting to complete multipart upload")
-      Right(s3client.completeMultipartUpload(
-        new CompleteMultipartUploadRequest(SnapshotterConfig.awsBucketName, path, uploadId, uploadPartTags)))
+      Right(retrying {
+              s3client.completeMultipartUpload(
+                new CompleteMultipartUploadRequest(SnapshotterConfig.awsBucketName, path, uploadId, uploadPartTags))
+            })
     } catch {
       case exception: AmazonS3Exception =>
         val msg =
@@ -76,7 +100,7 @@ object BlobStoreManager {
   def sendRequests(partReqs: Iterator[UploadPartRequest]): List[PartETag] = {
     partReqs.map { req =>
       logger.debug(s"Requesting to upload part {}", req.getPartNumber)
-      val partResp = s3client.uploadPart(req)
+      val partResp = retrying(s3client.uploadPart(req))
       partResp.getPartETag
     }.toList
   }
@@ -101,6 +125,8 @@ object BlobStoreManager {
     s3client.listObjects(SnapshotterConfig.awsBucketName, path)
     val req = new ListObjectsRequest().withBucketName(bucketName).withPrefix(s"$path")
     val objectListing = s3client.listObjects(req)
+    val req = new ListObjectsRequest().withBucketName(bucketName).withPrefix(s"$path/").withDelimiter("/")
+    val objectListing = retrying(s3client.listObjects(req))
     val objectSummaries: Seq[S3ObjectSummary] = objectListing.getObjectSummaries.asScala
 
     val snapshots: Seq[JValue] =
