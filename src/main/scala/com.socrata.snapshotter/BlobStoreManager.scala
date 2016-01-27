@@ -131,22 +131,19 @@ object BlobStoreManager {
   // TODO: account for possibility of truncated results (not a problem in testing, as first 1000 results return)
   def listObjects(bucketName: String, path: String): JValue = {
     logger.debug("Requesting a list...")
-    s3client.listObjects(SnapshotterConfig.awsBucketName, path)
-    val req = new ListObjectsRequest().withBucketName(bucketName).withPrefix(s"$path")
-    val objectListing = s3client.listObjects(req)
     val req = new ListObjectsRequest().withBucketName(bucketName).withPrefix(s"$path/").withDelimiter("/")
     val objectListing = retrying(s3client.listObjects(req))
     val objectSummaries: Seq[S3ObjectSummary] = objectListing.getObjectSummaries.asScala
 
     val snapshots: Seq[JValue] =
-      objectSummaries.map( sum => {
-        val key = sum.getKey
-        logger.debug(s"Found key: ${key}")
-        val (datasetId, timestamp) = parseKey(key)
-        json"""{ key:       ${sum.getKey},
-                 datasetId: ${datasetId},
-                 date:      ${timestamp},
-                 size:      ${sum.getSize} }"""})
+      objectSummaries.collect {
+        case ParseKey(key, size, datasetId, timestamp) =>
+          logger.debug(s"Found key: ${key}")
+          json"""{ key:       ${key},
+                   datasetId: ${datasetId},
+                   date:      ${timestamp},
+                   size:      ${size} }"""
+      }
 
     json"""{ "search prefix": $path, count: ${snapshots.length}, snapshots: $snapshots }"""
   }
@@ -155,17 +152,15 @@ object BlobStoreManager {
     manager.abortMultipartUploads(SnapshotterConfig.awsBucketName, new Date())
   }
 
-  def parseKey(keyName: String): (String, String) = {
-    val pattern = "(^....-....)-(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.?\\d*Z)\\.csv\\.gz".r
-    try {
-      val pattern(datasetId, timestamp) = keyName
-      (datasetId, timestamp)
-    } catch {
-      case e:MatchError => {
-        ("Unable to parse datasetId from key name", "Unable to parse snapshot date from key name")
+  object ParseKey {
+    val Pattern = ".*/(....-....)-(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.?\\d*Z)\\.csv\\.gz".r
+    def unapply(summary: S3ObjectSummary): Option[(String, Long, String, String)] =
+      summary.getKey match {
+        case Pattern(datasetId, timestamp) =>
+          Some((summary.getKey, summary.getSize, datasetId, timestamp))
+        case _ =>
+          None
       }
-    }
-
   }
 
   class LoggingListener(private val logger: org.slf4j.Logger) extends ProgressListener {
