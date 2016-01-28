@@ -51,7 +51,7 @@ case class SnapshotService(client: CuratedServiceClient) extends SimpleResource 
   def saveExport(datasetId: String): Response => Either[JValue, CompleteMultipartUploadResult] = { resp: Response =>
 
     if (resp.resultCode == 200) {
-      val now = new DateTime(DateTimeZone.forID("UTC"))
+      val now = new DateTime(DateTimeZone.UTC)
 
 //      Debug by downloading a file locally
 //      val zipped = new GZipCompressInputStream(resp.inputStream(), gzipBufferSize)
