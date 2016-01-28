@@ -25,12 +25,12 @@ case class SnapshotService(client: CuratedServiceClient) extends SimpleResource 
   private val logger = LoggerFactory.getLogger(getClass)
   private val gzipBufferSize = SnapshotterConfig.gzipBufferSize
 
-  def handleSnapshotRequest(req: HttpRequest, datasetId: String): HttpResponse = {
+  def handleSnapshotRequest(req: HttpRequest, datasetId: DatasetId): HttpResponse = {
 
     val makeReq: RequestBuilder => SimpleHttpRequest = { base =>
       val host = req.header("X-Socrata-Host").map("X-Socrata-Host" -> _)
       val csvReq = base.
-        addPaths(Seq("views", datasetId, "rows.csv")).
+        addPaths(Seq("views", datasetId.uid, "rows.csv")).
         addHeaders(host).
         addParameter("accessType" -> "DOWNLOAD").get
       logger.debug(csvReq.toString())
@@ -42,13 +42,13 @@ case class SnapshotService(client: CuratedServiceClient) extends SimpleResource 
     // need to catch response signifying error
     response match {
       case Right(ur) =>
-        OK ~> Content("text/plain", s"Successfully wrote dataset $datasetId, to ${ur.getKey}")
+        OK ~> Content("text/plain", s"Successfully wrote dataset ${datasetId.uid}, to ${ur.getKey}")
       case Left(msg) =>
         InternalServerError ~> Json(msg)
     }
   }
 
-  def saveExport(datasetId: String): Response => Either[JValue, CompleteMultipartUploadResult] = { resp: Response =>
+  def saveExport(datasetId: DatasetId): Response => Either[JValue, CompleteMultipartUploadResult] = { resp: Response =>
 
     if (resp.resultCode == 200) {
       val now = new DateTime(DateTimeZone.UTC)
@@ -62,7 +62,7 @@ case class SnapshotService(client: CuratedServiceClient) extends SimpleResource 
 
       using(new GZipCompressInputStream(resp.inputStream(), gzipBufferSize)) { inStream =>
         logger.info(s"About to start multipart upload request for dataset $datasetId")
-        BlobStoreManager.multipartUpload(inStream, s"$datasetId-$now.csv.gz")
+        BlobStoreManager.multipartUpload(inStream, s"${datasetId.uid}-$now.csv.gz")
        }
     } else {
       Left(extractErrorMsg(resp))
@@ -82,8 +82,8 @@ case class SnapshotService(client: CuratedServiceClient) extends SimpleResource 
   }
 
 
-  def handleFetchRequest(req: HttpRequest, datasetId: String, snapshotName: String): HttpResponse = {
-    BlobStoreManager.fetch(s"$datasetId/$snapshotName", req.resourceScope) match {
+  def handleFetchRequest(req: HttpRequest, datasetId: DatasetId, name: SnapshotName): HttpResponse = {
+    BlobStoreManager.fetch(s"${datasetId.uid}-${name.name}.csv.gz", req.resourceScope) match {
       case Some(s3Object) =>
         ContentLength(s3Object.getObjectMetadata.getContentLength) ~> Stream { out =>
           IOUtils.copy(s3Object.getObjectContent, out)
@@ -93,7 +93,7 @@ case class SnapshotService(client: CuratedServiceClient) extends SimpleResource 
     }
   }
 
-  def takeSnapshotService(datasetId: String): HttpService = {
+  def takeSnapshotService(datasetId: DatasetId): HttpService = {
     new SimpleResource {
       override def get: HttpService = req =>
           handleSnapshotRequest(req, datasetId)
@@ -102,8 +102,8 @@ case class SnapshotService(client: CuratedServiceClient) extends SimpleResource 
     }
   }
 
-  def fetchSnapshotService(datasetId: String, snapshotName: String): HttpService =
+  def fetchSnapshotService(datasetId: DatasetId, name: SnapshotName): HttpService =
     new SimpleResource {
-      override def get: HttpService = handleFetchRequest(_, datasetId, snapshotName)
+      override def get: HttpService = handleFetchRequest(_, datasetId, name)
     }
 }

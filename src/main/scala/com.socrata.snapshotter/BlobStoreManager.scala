@@ -131,7 +131,7 @@ object BlobStoreManager {
   // TODO: account for possibility of truncated results (not a problem in testing, as first 1000 results return)
   def listObjects(bucketName: String, path: String): JValue = {
     logger.debug("Requesting a list...")
-    val req = new ListObjectsRequest().withBucketName(bucketName).withPrefix(s"$path/").withDelimiter("/")
+    val req = new ListObjectsRequest().withBucketName(bucketName).withPrefix(path)
     val objectListing = retrying(s3client.listObjects(req))
     val objectSummaries: Seq[S3ObjectSummary] = objectListing.getObjectSummaries.asScala
 
@@ -153,7 +153,7 @@ object BlobStoreManager {
   }
 
   object ParseKey {
-    val Pattern = ".*/(....-....)-(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.?\\d*Z)\\.csv\\.gz".r
+    val Pattern = """(....-....)-(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.?\d*Z)\.csv\.gz""".r
     def unapply(summary: S3ObjectSummary): Option[(String, Long, String, String)] =
       summary.getKey match {
         case Pattern(datasetId, timestamp) =>

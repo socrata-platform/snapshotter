@@ -12,20 +12,20 @@ import org.slf4j.LoggerFactory
 object ListService extends SimpleResource {
   private val logger = LoggerFactory.getLogger(getClass)
 
-  def service(datasetId: String): HttpService = {
+  def service(datasetId: DatasetId, timestampPrefix: TimestampPrefix): HttpService = {
     new SimpleResource {
       override def get: HttpService = req =>
-        handleRequest(req, datasetId)
+        handleRequest(req, datasetId, timestampPrefix)
     }
   }
 
-  def handleRequest(req: HttpRequest, datasetId: String): HttpResponse = {
-    val resp = requestList(datasetId)
+  def handleRequest(req: HttpRequest, datasetId: DatasetId, prefix: TimestampPrefix): HttpResponse = {
+    val resp = requestList(datasetId, prefix)
     OK ~> Content("application/json", s"$resp" )
   }
 
-  def requestList(datasetId: String): JValue = {
-    BlobStoreManager.listObjects(SnapshotterConfig.awsBucketName, datasetId)
+  def requestList(datasetId: DatasetId, prefix: TimestampPrefix): JValue = {
+    BlobStoreManager.listObjects(SnapshotterConfig.awsBucketName, datasetId.uid + "-" + prefix.prefix)
   }
 
 }
