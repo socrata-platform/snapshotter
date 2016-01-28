@@ -61,7 +61,7 @@ case class SnapshotService(client: CuratedServiceClient) extends SimpleResource 
 //      Left(JString("Saved a file!"))
 
       using(new GZipCompressInputStream(resp.inputStream(), gzipBufferSize)) { inStream =>
-        logger.info(s"About to start multipart upload request for dataset $datasetId")
+        logger.info(s"About to start multipart upload request for dataset ${datasetId.uid}")
         BlobStoreManager.multipartUpload(inStream, s"${datasetId.uid}-$now.csv.gz")
        }
     } else {
