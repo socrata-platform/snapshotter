@@ -38,6 +38,19 @@ enablePlugins(sbtbuildinfo.BuildInfoPlugin)
 // Setup revolver.
 Revolver.settings
 
-releaseVersion := { _ => DateTimeFormat.forPattern("yy.MM.dd.HHmmss").withZoneUTC.print(DateTime.now()) }
+val LastVerDate = """^(\d+\.\d+\.\d+)(?:\D.*)?$""".r
 
-releaseNextVersion := { _ => "SNAPSHOT" }
+releaseVersion := { lastVerRaw =>
+  // We want three-segment versions unless we release more than once in a day, in which
+  // case we'll append the current time as a submicro component.
+  val now = DateTime.now()
+  val optimisticNextVer = DateTimeFormat.forPattern("yyyy.MM.dd").withZoneUTC.print(now)
+  lastVerRaw match {
+    case LastVerDate(lastVer) if lastVer == optimisticNextVer =>
+      optimisticNextVer + "." + DateTimeFormat.forPattern("HHmm").withZoneUTC.print(now)
+    case _ =>
+      optimisticNextVer
+  }
+}
+
+releaseNextVersion := { lastVer => lastVer + "-DEVELOPMENT" }
