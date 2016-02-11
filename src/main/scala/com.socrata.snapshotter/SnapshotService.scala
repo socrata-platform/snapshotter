@@ -2,6 +2,7 @@ package com.socrata.snapshotter
 
 import java.io.{ByteArrayInputStream, FileOutputStream, InputStream}
 import java.nio.file.{StandardCopyOption, Files, Paths}
+import java.util.zip.GZIPInputStream
 
 import com.amazonaws.services.s3.model._
 import com.amazonaws.services.s3.transfer.model.UploadResult
@@ -85,13 +86,29 @@ case class SnapshotService(client: CuratedServiceClient) extends SimpleResource 
   def handleFetchRequest(req: HttpRequest, datasetId: DatasetId, name: SnapshotName): HttpResponse = {
     BlobStoreManager.fetch(s"${datasetId.uid}-${name.name}.csv.gz", req.resourceScope) match {
       case Some(s3Object) =>
-        ContentLength(s3Object.getObjectMetadata.getContentLength) ~> Stream { out =>
-          IOUtils.copy(s3Object.getObjectContent, out)
+        if(name.gzipped) {
+          ContentLength(s3Object.getObjectMetadata.getContentLength) ~> Stream { out =>
+            IOUtils.copy(s3Object.getObjectContent, out)
+          }
+        } else if(acceptGzip(req)) {
+          // no content-length because it is unclear if it should be the CL of the compressed data
+          // or the uncompressed data.
+          Header("Content-encoding", "gzip") ~> Stream { out =>
+            IOUtils.copy(s3Object.getObjectContent, out)
+          }
+        } else {
+          Stream { out =>
+            using(new GZIPInputStream(s3Object.getObjectContent)) { decompressed =>
+              IOUtils.copy(decompressed, out)
+            }
+          }
         }
       case None =>
         NotFound
     }
   }
+
+  def acceptGzip(req: HttpRequest) = req.header("accept-encoding").fold(false)(_.contains("gzip"))
 
   def takeSnapshotService(datasetId: DatasetId): HttpService = {
     new SimpleResource {
