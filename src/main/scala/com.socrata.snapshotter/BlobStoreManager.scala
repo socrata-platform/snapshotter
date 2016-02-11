@@ -139,8 +139,7 @@ object BlobStoreManager {
       objectSummaries.collect {
         case ParseKey(key, size, datasetId, timestamp) =>
           logger.debug(s"Found key: ${key}")
-          json"""{ key:       ${key},
-                   datasetId: ${datasetId},
+          json"""{ datasetId: ${datasetId},
                    date:      ${timestamp},
                    size:      ${size} }"""
       }
