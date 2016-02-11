@@ -1,3 +1,6 @@
+import org.joda.time.DateTime
+import org.joda.time.format.DateTimeFormat
+
 name := "snapshotter"
 
 scalaVersion := "2.11.7"
@@ -34,3 +37,7 @@ enablePlugins(sbtbuildinfo.BuildInfoPlugin)
 
 // Setup revolver.
 Revolver.settings
+
+releaseVersion := { _ => DateTimeFormat.forPattern("yy.MM.dd.HHmmss").withZoneUTC.print(DateTime.now()) }
+
+releaseNextVersion := { _ => "SNAPSHOT" }
