@@ -35,6 +35,9 @@ testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, TestOptionNoTrac
 
 enablePlugins(sbtbuildinfo.BuildInfoPlugin)
 
+com.socrata.sbtplugins.StylePlugin.StyleKeys.styleCheck in Test := {},
+com.socrata.sbtplugins.StylePlugin.StyleKeys.styleCheck in Compile := {},
+
 // Setup revolver.
 Revolver.settings
 
