@@ -1,3 +1,6 @@
+import org.joda.time.DateTime
+import org.joda.time.format.DateTimeFormat
+
 name := "snapshotter"
 
 scalaVersion := "2.11.7"
@@ -34,3 +37,20 @@ enablePlugins(sbtbuildinfo.BuildInfoPlugin)
 
 // Setup revolver.
 Revolver.settings
+
+val LastVerDate = """^(\d+\.\d+\.\d+)(?:\D.*)?$""".r
+
+releaseVersion := { lastVerRaw =>
+  // We want three-segment versions unless we release more than once in a day, in which
+  // case we'll append the current time as a submicro component.
+  val now = DateTime.now()
+  val optimisticNextVer = DateTimeFormat.forPattern("yyyy.MM.dd").withZoneUTC.print(now)
+  lastVerRaw match {
+    case LastVerDate(lastVer) if lastVer == optimisticNextVer =>
+      optimisticNextVer + "." + DateTimeFormat.forPattern("HHmm").withZoneUTC.print(now)
+    case _ =>
+      optimisticNextVer
+  }
+}
+
+releaseNextVersion := { lastVer => lastVer + "-DEVELOPMENT" }

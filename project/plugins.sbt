@@ -4,3 +4,5 @@ resolvers ++= Seq("sonatype-releases" at "https://oss.sonatype.org/content/repos
 
 addSbtPlugin("com.socrata" % "socrata-sbt-plugins" %"1.6.1")
 addSbtPlugin("io.spray" % "sbt-revolver" % "0.7.2")
+
+libraryDependencies += "joda-time" % "joda-time" % "2.9.2"
