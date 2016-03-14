@@ -1,17 +1,13 @@
 package com.socrata.snapshotter
 
 import com.rojoma.json.v3.codec.JsonDecode
+import com.socrata.curator.CuratedServiceClient
 import scala.collection.immutable.SortedSet
-import com.socrata.http.client.{HttpClient, RequestBuilder}
+import com.socrata.http.client.{Response, HttpClient, RequestBuilder}
 
-class SnapshotDAOImpl(http: HttpClient, hostPort: () => (String, Int)) extends SnapshotDAO {
-  private def reqBase: RequestBuilder = {
-    val (h,p) = hostPort()
-    RequestBuilder(h).port(p)
-  }
-
-  private def get[T : JsonDecode](s: String*): Option[T] =
-    http.execute(reqBase.p(s:_*).get).run { r =>
+class SnapshotDAOImpl(sfClient: CuratedServiceClient) extends SnapshotDAO {
+  private def get[T : JsonDecode](s: String*): Option[T] = {
+    def handler(r: Response) =
       r.resultCode match {
         case 200 =>
           r.value[T]() match {
@@ -25,10 +21,11 @@ class SnapshotDAOImpl(http: HttpClient, hostPort: () => (String, Int)) extends S
         case other =>
           throw new Exception("Unexpected result code for GET of " + s.mkString("/","/","") + ": " + other)
       }
-    }
+    sfClient.execute(_.p(s: _*).get, handler)
+  }
 
-  private def delete(s: String*): Boolean =
-    http.execute(reqBase.p(s:_*).get).run { r =>
+  private def delete(s: String*): Boolean = {
+    def handler(r: Response) =
       r.resultCode match {
         case 200 =>
           true
@@ -37,7 +34,8 @@ class SnapshotDAOImpl(http: HttpClient, hostPort: () => (String, Int)) extends S
         case other =>
           throw new Exception("Unexpected result code for DELETE of " + s.mkString("/","/","") + ": " + other)
       }
-    }
+    sfClient.execute(_.p(s:_*).delete, handler)
+  }
 
   def datasetsWithSnapshots(): Set[String] =
     get[Set[String]]("snapshot").getOrElse(Set.empty)

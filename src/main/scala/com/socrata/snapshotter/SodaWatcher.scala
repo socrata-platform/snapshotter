@@ -1,5 +1,7 @@
 package com.socrata.snapshotter
 
+import java.io.Closeable
+
 import scala.concurrent.duration.FiniteDuration
 import org.apache.curator.framework.CuratorFramework
 import org.apache.curator.framework.recipes.leader.LeaderLatch
@@ -8,7 +10,7 @@ import org.slf4j.LoggerFactory
 class SodaWatcher(curatorFramework: CuratorFramework,
                   latchPath: String,
                   pause: FiniteDuration,
-                  snapshotDAO: SnapshotDAO) {
+                  snapshotDAO: SnapshotDAO) extends Closeable {
   private val log = LoggerFactory.getLogger(classOf[SodaWatcher])
   private val latch = new LeaderLatch(curatorFramework, latchPath)
   private val pauseMS = pause.toMillis
@@ -23,7 +25,7 @@ class SodaWatcher(curatorFramework: CuratorFramework,
       }
     }
 
-  def stop(): Unit =
+  def close(): Unit =
     synchronized {
       if(worker != null) {
         latch.close()

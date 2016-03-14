@@ -7,6 +7,7 @@ import com.socrata.http.server.SocrataServerJetty
 import com.socrata.http.client.HttpClientHttpClient
 import com.socrata.http.server.curator.CuratorBroker
 import com.rojoma.simplearm.v2._
+import scala.concurrent.duration._
 
 object Snapshotter extends App {
   val config = new SnapshotterServiceConfig(ConfigFactory.load())
@@ -37,14 +38,18 @@ object Snapshotter extends App {
                         snapshotServingService = snapshotService.fetchSnapshotService,
                         listService = new ListService(blobStoreManager).service)
     val handler = router.route _
+    val snapshotDAO = new SnapshotDAOImpl(sfClient)
 
-    val server = new SocrataServerJetty(
-      handler = handler,
-      options = SocrataServerJetty.defaultOptions.
-        withPort(config.port).
-        withBroker(broker)
-    )
+    using(new SodaWatcher(curator, "/snapshotter", 5000.millis, snapshotDAO)) { sw =>
+      sw.start()
+      val server = new SocrataServerJetty(
+        handler = handler,
+        options = SocrataServerJetty.defaultOptions.
+          withPort(config.snapshotter.port).
+          withBroker(broker)
+      )
 
-    server.run()
+      server.run()
+    }
   }
 }
