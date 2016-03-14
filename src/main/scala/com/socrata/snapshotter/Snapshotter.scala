@@ -7,19 +7,11 @@ import com.socrata.http.server.SocrataServerJetty
 import com.socrata.http.client.HttpClientHttpClient
 import com.socrata.http.server.curator.CuratorBroker
 import com.rojoma.simplearm.v2._
-import scala.concurrent.duration._
 
 object Snapshotter extends App {
   val config = new SnapshotterServiceConfig(ConfigFactory.load())
   implicit val shutdownTimeout = Resource.executorShutdownNoTimeout
 
-  // Ok, let's just redo ALL THE THINGS.
-  // What we need:
-  //  * executor
-  //  * http client
-  //  * discovery for core
-  //  * discovery for soda-fountain
-  //  * broker for our own advertisement
   for {
     executor <- managed(Executors.newCachedThreadPool())
     httpClient <- managed(new HttpClientHttpClient(executor, HttpClientHttpClient.defaultOptions.withUserAgent("snapshotter")))
@@ -40,7 +32,7 @@ object Snapshotter extends App {
     val handler = router.route _
     val snapshotDAO = new SnapshotDAOImpl(sfClient)
 
-    using(new SodaWatcher(curator, "/snapshotter", 5000.millis, snapshotDAO)) { sw =>
+    using(new SodaWatcher(curator, config.snapshotter.poll.latchRoot, config.snapshotter.poll.interval, snapshotDAO)) { sw =>
       sw.start()
       val server = new SocrataServerJetty(
         handler = handler,
