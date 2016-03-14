@@ -4,15 +4,23 @@ import com.socrata.curator.{CuratorConfig, CuratedClientConfig, DiscoveryBrokerC
 import com.socrata.thirdparty.typesafeconfig.ConfigClass
 import com.typesafe.config.Config
 
-class SnapshotterConfig(config: Config) extends ConfigClass(config, "com.socrata") {
-  lazy val port = getInt("snapshotter.port")
-  lazy val gzipBufferSize = getInt("snapshotter.gzip-buffer-size")
-  lazy val uploadPartSize = getInt("aws.upload-part-size")
+class SnapshotterServiceConfig(config: Config) extends ConfigClass(config, "com.socrata") {
+  val snapshotter = new SnapshotterConfig(config, "snapshotter")
+  val aws = new AwsConfig(config, "aws")
 
-  lazy val curator = new CuratorConfig(config, "curator")
-  lazy val advertisement = new DiscoveryConfig(config, "advertisement")
-  lazy val core = new CuratedClientConfig(config, "core")
-  lazy val sodaFountain = new CuratedClientConfig(config, "soda-fountain")
+  val curator = new CuratorConfig(config, "curator")
+  val advertisement = new DiscoveryConfig(config, "advertisement")
+  val core = new CuratedClientConfig(config, "core")
+  val sodaFountain = new CuratedClientConfig(config, "soda-fountain")
 
-  lazy val awsBucketName = config.getString("aws.bucket-name")
+}
+
+class SnapshotterConfig(config: Config, root: String) extends ConfigClass(config, root) {
+  val port = getInt("port")
+  val gzipBufferSize = getInt("gzip-buffer-size")
+}
+
+class AwsConfig(config: Config, root: String) extends ConfigClass(config, root) {
+  val uploadPartSize = getInt("upload-part-size")
+  val bucketName = config.getString("bucket-name")
 }
