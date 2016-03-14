@@ -12,6 +12,8 @@ libraryDependencies ++= Seq(
     ExclusionRule(organization = "com.socrata", name = "socrata-http-common")),
   "com.socrata"               %% "socrata-http-common"     % "3.4.1" excludeAll(
     ExclusionRule(organization = "com.rojoma")),
+  "com.socrata"               %% "socrata-http-curator-broker" % "3.4.1" excludeAll(
+    ExclusionRule(organization = "com.rojoma")),
   "com.socrata"               %% "socrata-curator-utils"   % "1.0.3" excludeAll(
     ExclusionRule(organization = "com.socrata", name = "socrata-http-client"),
     ExclusionRule(organization = "com.socrata", name = "socrata-http-jetty")),
