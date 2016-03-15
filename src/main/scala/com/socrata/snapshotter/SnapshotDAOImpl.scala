@@ -6,6 +6,8 @@ import scala.collection.immutable.SortedSet
 import com.socrata.http.client.{Response, HttpClient, RequestBuilder}
 
 class SnapshotDAOImpl(sfClient: CuratedServiceClient) extends SnapshotDAO {
+  val stdTimeout = 30000 // 30s
+
   private def get[T : JsonDecode](s: String*): Option[T] = {
     def handler(r: Response) =
       r.resultCode match {
@@ -21,7 +23,7 @@ class SnapshotDAOImpl(sfClient: CuratedServiceClient) extends SnapshotDAO {
         case other =>
           throw new Exception("Unexpected result code for GET of " + s.mkString("/","/","") + ": " + other)
       }
-    sfClient.execute(_.p(s: _*).get, handler)
+    sfClient.execute(_.p(s: _*).timeoutMS(stdTimeout).get, handler)
   }
 
   private def delete(s: String*): Boolean = {
@@ -34,7 +36,7 @@ class SnapshotDAOImpl(sfClient: CuratedServiceClient) extends SnapshotDAO {
         case other =>
           throw new Exception("Unexpected result code for DELETE of " + s.mkString("/","/","") + ": " + other)
       }
-    sfClient.execute(_.p(s:_*).delete, handler)
+    sfClient.execute(_.p(s:_*).timeoutMS(stdTimeout).delete, handler)
   }
 
   def datasetsWithSnapshots(): Set[String] =
