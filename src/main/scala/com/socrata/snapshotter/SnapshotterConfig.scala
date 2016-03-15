@@ -22,7 +22,7 @@ class SnapshotterConfig(config: Config, root: String) extends ConfigClass(config
 
 class AwsConfig(config: Config, root: String) extends ConfigClass(config, root) {
   val uploadPartSize = getInt("upload-part-size")
-  val bucketName = config.getString("bucket-name")
+  val bucketName = getString("bucket-name")
 }
 
 class SnapshotPollConfig(config: Config, root: String) extends ConfigClass(config, root) {
