@@ -1,6 +1,6 @@
 package com.socrata.snapshotter
 
-import java.io.Closeable
+import java.io.{IOException, Closeable}
 
 import scala.concurrent.duration.FiniteDuration
 import org.apache.curator.framework.CuratorFramework
@@ -52,13 +52,18 @@ class SodaWatcher(curatorFramework: CuratorFramework,
       while(true) {
         Thread.sleep(pauseMS)
         if(!latch.hasLeadership) { return }
-        for {
-          ds <- snapshotDAO.datasetsWithSnapshots()
-          snapshot <- snapshotDAO.datasetSnapshots(ds)
-        } {
+        for(ds <- snapshotDAO.datasetsWithSnapshots().par) {
           if(!latch.hasLeadership) { return }
-          log.info("Purging snapshot {} on dataset {}", snapshot, ds)
-          snapshotDAO.deleteSnapshot(ds, snapshot)
+          try {
+            for(snapshot <- snapshotDAO.datasetSnapshots(ds)) {
+              if(!latch.hasLeadership) { return }
+              log.info("Purging snapshot {} on dataset {}", snapshot, ds)
+              snapshotDAO.deleteSnapshot(ds, snapshot)
+            }
+          } catch {
+            case e: IOException =>
+              log.warn("Error purging snapshot on dataset {}; ignoring", ds : Any, e)
+          }
         }
       }
     }

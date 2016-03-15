@@ -3,7 +3,7 @@ package com.socrata.snapshotter
 import com.rojoma.json.v3.codec.JsonDecode
 import com.socrata.curator.CuratedServiceClient
 import scala.collection.immutable.SortedSet
-import com.socrata.http.client.{Response, HttpClient, RequestBuilder}
+import com.socrata.http.client.Response
 
 class SnapshotDAOImpl(sfClient: CuratedServiceClient) extends SnapshotDAO {
   val stdTimeout = 30000 // 30s
