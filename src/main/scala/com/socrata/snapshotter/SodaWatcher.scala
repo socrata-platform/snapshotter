@@ -57,6 +57,7 @@ class SodaWatcher(curatorFramework: CuratorFramework,
           snapshot <- snapshotDAO.datasetSnapshots(ds)
         } {
           if(!latch.hasLeadership) { return }
+          log.info("Purging snapshot {} on dataset {}", snapshot, ds)
           snapshotDAO.deleteSnapshot(ds, snapshot)
         }
       }
