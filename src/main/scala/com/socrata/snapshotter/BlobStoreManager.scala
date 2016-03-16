@@ -1,6 +1,6 @@
 package com.socrata.snapshotter
 
-import java.io.InputStream
+import java.io.{Closeable, InputStream}
 import java.util.Date
 
 import scala.collection.JavaConverters._
@@ -15,15 +15,14 @@ import com.rojoma.json.v3.ast.JValue
 import com.rojoma.simplearm.v2._
 import org.slf4j.LoggerFactory
 
-object BlobStoreManager {
+class BlobStoreManager(bucketName: String, uploadPartSize: Int) extends Closeable {
   private lazy val s3client = new AmazonS3Client()
   private lazy val manager = new TransferManager(s3client)
   private val logger = LoggerFactory.getLogger(getClass)
-  private val uploadPartSize = SnapshotterConfig.uploadPartSize
 
-  def shutdownManager(): Unit = {
+  def close(): Unit = {
     logger.debug("Shutting down transfer manager.")
-    manager.shutdownNow()
+    manager.shutdownNow() // also shuts down the s3 client
   }
 
   private def retrying[T](op: =>T): T = {
@@ -48,7 +47,7 @@ object BlobStoreManager {
 
   def upload(inStream: InputStream, path: String): Either[JValue, UploadResult] = {
     try {
-      val req = new PutObjectRequest(SnapshotterConfig.awsBucketName, path, inStream, new ObjectMetadata())
+      val req = new PutObjectRequest(bucketName, path, inStream, new ObjectMetadata())
       logger.debug(s"Sending put request to s3: $req")
       val upload = manager.upload(req)
 
@@ -73,7 +72,7 @@ object BlobStoreManager {
       logger.debug("Initiate multipart upload")
       val initResult = retrying {
           s3client.initiateMultipartUpload(
-            new InitiateMultipartUploadRequest(SnapshotterConfig.awsBucketName, path))
+            new InitiateMultipartUploadRequest(bucketName, path))
         }
       val uploadId = initResult.getUploadId
       val partReqs = createRequests(initResult.getUploadId, path, inStream)
@@ -83,7 +82,7 @@ object BlobStoreManager {
       logger.debug("Requesting to complete multipart upload")
       Right(retrying {
               s3client.completeMultipartUpload(
-                new CompleteMultipartUploadRequest(SnapshotterConfig.awsBucketName, path, uploadId, uploadPartTags))
+                new CompleteMultipartUploadRequest(bucketName, path, uploadId, uploadPartTags))
             })
     } catch {
       case exception: AmazonS3Exception =>
@@ -100,7 +99,7 @@ object BlobStoreManager {
 
   def fetch(path: String, resourceScope: ResourceScope): Option[S3Object] =
     try {
-      Some(resourceScope.open(retrying(s3client.getObject(SnapshotterConfig.awsBucketName, path))))
+      Some(resourceScope.open(retrying(s3client.getObject(bucketName, path))))
     } catch {
       case e: AmazonS3Exception if e.getStatusCode == 404 =>
         None
@@ -119,7 +118,7 @@ object BlobStoreManager {
     val chunker = new StreamChunker(inStream, uploadPartSize)
 
     chunker.chunks.map { chunk => new UploadPartRequest().
-      withBucketName(SnapshotterConfig.awsBucketName).
+      withBucketName(bucketName).
       withUploadId(uploadId).
       withKey(path).
       withInputStream(chunk.inputStream).
@@ -129,7 +128,7 @@ object BlobStoreManager {
   }
 
   // TODO: account for possibility of truncated results (not a problem in testing, as first 1000 results return)
-  def listObjects(bucketName: String, path: String): JValue = {
+  def listObjects(path: String): JValue = {
     logger.debug("Requesting a list...")
     val req = new ListObjectsRequest().withBucketName(bucketName).withPrefix(path)
     val objectListing = retrying(s3client.listObjects(req))
@@ -148,7 +147,7 @@ object BlobStoreManager {
   }
 
   def abortMultiPartUploads(): Unit = {
-    manager.abortMultipartUploads(SnapshotterConfig.awsBucketName, new Date())
+    manager.abortMultipartUploads(bucketName, new Date())
   }
 
   object ParseKey {

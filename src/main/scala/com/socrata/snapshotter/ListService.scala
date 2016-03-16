@@ -9,7 +9,7 @@ import com.socrata.http.server.routing.SimpleResource
 
 import org.slf4j.LoggerFactory
 
-object ListService extends SimpleResource {
+class ListService(blobStoreManager: BlobStoreManager) extends SimpleResource {
   private val logger = LoggerFactory.getLogger(getClass)
 
   def service(datasetId: DatasetId, timestampPrefix: TimestampPrefix): HttpService = {
@@ -25,7 +25,7 @@ object ListService extends SimpleResource {
   }
 
   def requestList(datasetId: DatasetId, prefix: TimestampPrefix): JValue = {
-    BlobStoreManager.listObjects(SnapshotterConfig.awsBucketName, datasetId.uid + "-" + prefix.prefix)
+    blobStoreManager.listObjects(datasetId.uid + "-" + prefix.prefix)
   }
 
 }

@@ -22,9 +22,8 @@ import org.joda.time.{DateTime, DateTimeZone}
 import org.apache.commons.io.IOUtils
 import org.slf4j.LoggerFactory
 
-case class SnapshotService(client: CuratedServiceClient) extends SimpleResource {
+case class SnapshotService(coreClient: CuratedServiceClient, blobStoreManager: BlobStoreManager, gzipBufferSize: Int) extends SimpleResource {
   private val logger = LoggerFactory.getLogger(getClass)
-  private val gzipBufferSize = SnapshotterConfig.gzipBufferSize
 
   def handleSnapshotRequest(req: HttpRequest, datasetId: DatasetId): HttpResponse = {
 
@@ -38,7 +37,7 @@ case class SnapshotService(client: CuratedServiceClient) extends SimpleResource 
       csvReq
     }
 
-    val response = client.execute(makeReq, saveExport(datasetId))
+    val response = coreClient.execute(makeReq, saveExport(datasetId))
 
     // need to catch response signifying error
     response match {
@@ -63,7 +62,7 @@ case class SnapshotService(client: CuratedServiceClient) extends SimpleResource 
 
       using(new GZipCompressInputStream(resp.inputStream(), gzipBufferSize)) { inStream =>
         logger.info(s"About to start multipart upload request for dataset ${datasetId.uid}")
-        BlobStoreManager.multipartUpload(inStream, s"${datasetId.uid}-$now.csv.gz")
+        blobStoreManager.multipartUpload(inStream, s"${datasetId.uid}-$now.csv.gz")
        }
     } else {
       Left(extractErrorMsg(resp))
@@ -84,7 +83,7 @@ case class SnapshotService(client: CuratedServiceClient) extends SimpleResource 
 
 
   def handleFetchRequest(req: HttpRequest, datasetId: DatasetId, name: SnapshotName): HttpResponse = {
-    BlobStoreManager.fetch(s"${datasetId.uid}-${name.name}.csv.gz", req.resourceScope) match {
+    blobStoreManager.fetch(s"${datasetId.uid}-${name.name}.csv.gz", req.resourceScope) match {
       case Some(s3Object) =>
         if(name.gzipped) {
           ContentLength(s3Object.getObjectMetadata.getContentLength) ~> Stream { out =>
