@@ -1,7 +1,11 @@
 package com.socrata.snapshotter
 
 import com.rojoma.json.v3.codec.JsonDecode
+import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.curator.CuratedServiceClient
+import com.socrata.http.common.util.HttpUtils
+import com.socrata.snapshotter.SnapshotDAO.SnapshotInfo
+import org.joda.time.DateTime
 import scala.collection.immutable.SortedSet
 import com.socrata.http.client.Response
 
@@ -47,4 +51,18 @@ class SnapshotDAOImpl(sfClient: CuratedServiceClient) extends SnapshotDAO {
 
   def deleteSnapshot(dataset: String, snapshot: Long): Unit =
     delete("snapshot", dataset, snapshot.toString)
+
+  private def lastModified(r: Response): Option[DateTime] =
+    r.headers("last-modified").headOption.map(HttpUtils.parseHttpDate)
+
+  override def exportSnapshot[T](dataset: String, snapshot: Long)(f: Option[SnapshotInfo] => T): T = {
+    def handler(r: Response) =
+      r.resultCode match {
+        case 200 =>
+          f(Some(SnapshotInfo(lastModified(r).get, r.inputStream())))
+        case 404 =>
+          f(None)
+      }
+    sfClient.execute(_.p("snapshot", dataset, snapshot.toString).get, handler)
+  }
 }

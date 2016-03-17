@@ -7,10 +7,14 @@ import com.socrata.http.server.SocrataServerJetty
 import com.socrata.http.client.HttpClientHttpClient
 import com.socrata.http.server.curator.CuratorBroker
 import com.rojoma.simplearm.v2._
+import org.joda.time.{DateTimeZone, DateTime}
 
 object Snapshotter extends App {
   val config = new SnapshotterServiceConfig(ConfigFactory.load())
   implicit val shutdownTimeout = Resource.executorShutdownNoTimeout
+
+  def basenameFor(datasetId: DatasetId, dateTime: DateTime): String =
+    s"${datasetId.uid}-${dateTime.withZone(DateTimeZone.UTC)}"
 
   for {
     executor <- managed(Executors.newCachedThreadPool())
@@ -24,7 +28,7 @@ object Snapshotter extends App {
     val coreClient = CuratedServiceClient(CuratorServerProvider(httpClient, coreServiceProvider, identity), config.core)
     val sfClient = CuratedServiceClient(CuratorServerProvider(httpClient, sfServiceProvider, identity), config.sodaFountain)
     val broker = new CuratorBroker(discovery, config.advertisement.address, config.advertisement.name, None)
-    val snapshotService = SnapshotService(coreClient, blobStoreManager, config.snapshotter.gzipBufferSize)
+    val snapshotService = SnapshotService(coreClient, blobStoreManager, config.snapshotter.gzipBufferSize, basenameFor)
     val router = Router(versionService = VersionService,
                         snapshotService = snapshotService.takeSnapshotService,
                         snapshotServingService = snapshotService.fetchSnapshotService,
@@ -32,7 +36,14 @@ object Snapshotter extends App {
     val handler = router.route _
     val snapshotDAO = new SnapshotDAOImpl(sfClient)
 
-    using(new SodaWatcher(curator, config.snapshotter.poll.latchRoot, config.snapshotter.poll.interval, snapshotDAO)) { sw =>
+    using(new SodaWatcher(
+      curator,
+      config.snapshotter.poll.latchRoot,
+      config.snapshotter.poll.interval,
+      snapshotDAO,
+      config.snapshotter.gzipBufferSize,
+      blobStoreManager,
+      basenameFor)) { sw =>
       sw.start()
       val server = new SocrataServerJetty(
         handler = handler,

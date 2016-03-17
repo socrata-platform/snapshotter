@@ -22,7 +22,7 @@ import org.joda.time.{DateTime, DateTimeZone}
 import org.apache.commons.io.IOUtils
 import org.slf4j.LoggerFactory
 
-case class SnapshotService(coreClient: CuratedServiceClient, blobStoreManager: BlobStoreManager, gzipBufferSize: Int) extends SimpleResource {
+case class SnapshotService(coreClient: CuratedServiceClient, blobStoreManager: BlobStoreManager, gzipBufferSize: Int, basenameFor: (DatasetId, DateTime) => String) extends SimpleResource {
   private val logger = LoggerFactory.getLogger(getClass)
 
   def handleSnapshotRequest(req: HttpRequest, datasetId: DatasetId): HttpResponse = {
@@ -52,6 +52,7 @@ case class SnapshotService(coreClient: CuratedServiceClient, blobStoreManager: B
 
     if (resp.resultCode == 200) {
       val now = new DateTime(DateTimeZone.UTC)
+      val basename = basenameFor(datasetId, now)
 
 //      Debug by downloading a file locally
 //      val zipped = new GZipCompressInputStream(resp.inputStream(), gzipBufferSize)
@@ -62,7 +63,7 @@ case class SnapshotService(coreClient: CuratedServiceClient, blobStoreManager: B
 
       using(new GZipCompressInputStream(resp.inputStream(), gzipBufferSize)) { inStream =>
         logger.info(s"About to start multipart upload request for dataset ${datasetId.uid}")
-        blobStoreManager.multipartUpload(inStream, s"${datasetId.uid}-$now.csv.gz")
+        blobStoreManager.multipartUpload(inStream, s"$basename.csv.gz")
        }
     } else {
       Left(extractErrorMsg(resp))
