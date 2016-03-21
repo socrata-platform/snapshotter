@@ -41,14 +41,14 @@ case class SnapshotService(coreClient: CuratedServiceClient, blobStoreManager: B
 
     // need to catch response signifying error
     response match {
-      case Right(ur) =>
-        OK ~> Content("text/plain", s"Successfully wrote dataset ${datasetId.uid}, to ${ur.getKey}")
+      case Right(timestamp) =>
+        OK ~> Json(timestamp.withZone(DateTimeZone.UTC).toString)
       case Left(msg) =>
         InternalServerError ~> Json(msg)
     }
   }
 
-  def saveExport(datasetId: DatasetId): Response => Either[JValue, CompleteMultipartUploadResult] = { resp: Response =>
+  def saveExport(datasetId: DatasetId): Response => Either[JValue, DateTime] = { resp: Response =>
 
     if (resp.resultCode == 200) {
       val now = new DateTime(DateTimeZone.UTC)
@@ -63,7 +63,9 @@ case class SnapshotService(coreClient: CuratedServiceClient, blobStoreManager: B
 
       using(new GZipCompressInputStream(resp.inputStream(), gzipBufferSize)) { inStream =>
         logger.info(s"About to start multipart upload request for dataset ${datasetId.uid}")
-        blobStoreManager.multipartUpload(inStream, s"$basename.csv.gz")
+        blobStoreManager.multipartUpload(inStream, s"$basename.csv.gz").right.map { _ =>
+          now
+        }
        }
     } else {
       Left(extractErrorMsg(resp))
