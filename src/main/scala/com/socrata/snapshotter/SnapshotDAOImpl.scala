@@ -10,6 +10,7 @@ import scala.collection.immutable.SortedSet
 import com.socrata.http.client.Response
 
 class SnapshotDAOImpl(sfClient: CuratedServiceClient) extends SnapshotDAO {
+  val log = org.slf4j.LoggerFactory.getLogger(classOf[SnapshotDAOImpl])
   val stdTimeout = 30000 // 30s
 
   private def get[T : JsonDecode](s: String*): Option[T] = {
@@ -59,7 +60,13 @@ class SnapshotDAOImpl(sfClient: CuratedServiceClient) extends SnapshotDAO {
     def handler(r: Response) =
       r.resultCode match {
         case 200 =>
-          f(Some(SnapshotInfo(lastModified(r).get, r.inputStream())))
+          lastModified(r) match {
+            case Some(lm) =>
+              f(Some(SnapshotInfo(lm, r.inputStream())))
+            case None =>
+              log.warn("No last-modified for dataset {} snapshot {}?", dataset, snapshot)
+              f(None)
+          }
         case 404 =>
           f(None)
       }
