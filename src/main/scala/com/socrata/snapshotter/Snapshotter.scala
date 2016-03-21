@@ -13,22 +13,20 @@ object Snapshotter extends App {
   val config = new SnapshotterServiceConfig(ConfigFactory.load())
   implicit val shutdownTimeout = Resource.executorShutdownNoTimeout
 
-  def basenameFor(datasetId: DatasetId, dateTime: DateTime): String =
-    s"${datasetId.uid}-${dateTime.withZone(DateTimeZone.UTC)}"
+  def basenameFor(resourceName: ResourceName, dateTime: DateTime): String =
+    s"${resourceName.underlying}:${dateTime.withZone(DateTimeZone.UTC)}"
 
   for {
     executor <- managed(Executors.newCachedThreadPool())
     httpClient <- managed(new HttpClientHttpClient(executor, HttpClientHttpClient.defaultOptions.withUserAgent("snapshotter")))
     curator <- CuratorFromConfig(config.curator)
     discovery <- DiscoveryFromConfig(classOf[Void], curator, config.advertisement)
-    coreServiceProvider <- ServiceProviderFromName(discovery, config.core.serviceName)
     sfServiceProvider <- ServiceProviderFromName(discovery, config.sodaFountain.serviceName)
     blobStoreManager <- managed(new BlobStoreManager(config.aws.bucketName, config.aws.uploadPartSize))
   } {
-    val coreClient = CuratedServiceClient(CuratorServerProvider(httpClient, coreServiceProvider, identity), config.core)
     val sfClient = CuratedServiceClient(CuratorServerProvider(httpClient, sfServiceProvider, identity), config.sodaFountain)
     val broker = new CuratorBroker(discovery, config.advertisement.address, config.advertisement.name, None)
-    val snapshotService = SnapshotService(coreClient, blobStoreManager, config.snapshotter.gzipBufferSize, basenameFor)
+    val snapshotService = SnapshotService(sfClient, blobStoreManager, config.snapshotter.gzipBufferSize, basenameFor)
     val router = Router(versionService = VersionService,
                         snapshotService = snapshotService.takeSnapshotService,
                         snapshotServingService = snapshotService.fetchSnapshotService,

@@ -10,7 +10,6 @@ class SnapshotterServiceConfig(config: Config) extends ConfigClass(config, "com.
 
   val curator = getConfig("curator", new CuratorConfig(_, _))
   val advertisement = getConfig("advertisement", new DiscoveryConfig(_, _))
-  val core = getConfig("core", new CuratedClientConfig(_, _))
   val sodaFountain = getConfig("soda-fountain", new CuratedClientConfig(_, _))
 }
 

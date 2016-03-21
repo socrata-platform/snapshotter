@@ -138,7 +138,7 @@ class BlobStoreManager(bucketName: String, uploadPartSize: Int) extends Closeabl
       objectSummaries.collect {
         case ParseKey(key, size, datasetId, timestamp) =>
           logger.debug(s"Found key: ${key}")
-          json"""{ datasetId: ${datasetId},
+          json"""{ datasetId: ${datasetId.underlying},
                    date:      ${timestamp},
                    size:      ${size} }"""
       }
@@ -151,11 +151,11 @@ class BlobStoreManager(bucketName: String, uploadPartSize: Int) extends Closeabl
   }
 
   object ParseKey {
-    val Pattern = """(....-....)-(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.?\d*Z)\.csv\.gz""".r
-    def unapply(summary: S3ObjectSummary): Option[(String, Long, String, String)] =
+    val Pattern = """(.*):(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.?\d*Z)\.csv\.gz""".r
+    def unapply(summary: S3ObjectSummary): Option[(String, Long, ResourceName, String)] =
       summary.getKey match {
         case Pattern(datasetId, timestamp) =>
-          Some((summary.getKey, summary.getSize, datasetId, timestamp))
+          Some((summary.getKey, summary.getSize, ResourceName(datasetId), timestamp))
         case _ =>
           None
       }

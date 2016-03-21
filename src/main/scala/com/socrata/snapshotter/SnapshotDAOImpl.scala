@@ -44,19 +44,19 @@ class SnapshotDAOImpl(sfClient: CuratedServiceClient) extends SnapshotDAO {
     sfClient.execute(_.p(s:_*).timeoutMS(stdTimeout).delete, handler)
   }
 
-  def datasetsWithSnapshots(): Set[String] =
-    get[Set[String]]("snapshot").getOrElse(Set.empty)
+  def datasetsWithSnapshots(): Set[ResourceName] =
+    get[Set[String]]("snapshot").getOrElse(Set.empty).map(ResourceName)
 
-  def datasetSnapshots(dataset: String): SortedSet[Long] =
-    get[SortedSet[Long]]("snapshot", dataset).getOrElse(SortedSet.empty)
+  def datasetSnapshots(dataset: ResourceName): SortedSet[Long] =
+    get[SortedSet[Long]]("snapshot", dataset.underlying).getOrElse(SortedSet.empty)
 
-  def deleteSnapshot(dataset: String, snapshot: Long): Unit =
-    delete("snapshot", dataset, snapshot.toString)
+  def deleteSnapshot(dataset: ResourceName, snapshot: Long): Unit =
+    delete("snapshot", dataset.underlying, snapshot.toString)
 
   private def lastModified(r: Response): Option[DateTime] =
     r.headers("last-modified").headOption.map(HttpUtils.parseHttpDate)
 
-  override def exportSnapshot[T](dataset: String, snapshot: Long)(f: Option[SnapshotInfo] => T): T = {
+  override def exportSnapshot[T](dataset: ResourceName, snapshot: Long)(f: Option[SnapshotInfo] => T): T = {
     def handler(r: Response) =
       r.resultCode match {
         case 200 =>
@@ -64,12 +64,12 @@ class SnapshotDAOImpl(sfClient: CuratedServiceClient) extends SnapshotDAO {
             case Some(lm) =>
               f(Some(SnapshotInfo(lm, r.inputStream())))
             case None =>
-              log.warn("No last-modified for dataset {} snapshot {}?", dataset, snapshot)
+              log.warn("No last-modified for dataset {} snapshot {}?", dataset.underlying, snapshot)
               f(None)
           }
         case 404 =>
           f(None)
       }
-    sfClient.execute(_.p("snapshot", dataset, snapshot.toString).get, handler)
+    sfClient.execute(_.p("snapshot", dataset.underlying, snapshot.toString).get, handler)
   }
 }

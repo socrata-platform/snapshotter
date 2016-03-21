@@ -16,28 +16,27 @@ import com.socrata.http.client.{Response, SimpleHttpRequest, RequestBuilder}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.SimpleResource
+import com.socrata.http.server.util.RequestId
 import com.socrata.http.server.{HttpResponse, HttpRequest, HttpService}
 
 import org.joda.time.{DateTime, DateTimeZone}
 import org.apache.commons.io.IOUtils
 import org.slf4j.LoggerFactory
 
-case class SnapshotService(coreClient: CuratedServiceClient, blobStoreManager: BlobStoreManager, gzipBufferSize: Int, basenameFor: (DatasetId, DateTime) => String) extends SimpleResource {
+case class SnapshotService(sfClient: CuratedServiceClient, blobStoreManager: BlobStoreManager, gzipBufferSize: Int, basenameFor: (ResourceName, DateTime) => String) extends SimpleResource {
   private val logger = LoggerFactory.getLogger(getClass)
 
-  def handleSnapshotRequest(req: HttpRequest, datasetId: DatasetId): HttpResponse = {
-
+  def handleSnapshotRequest(req: HttpRequest, resourceName: ResourceName): HttpResponse = {
     val makeReq: RequestBuilder => SimpleHttpRequest = { base =>
-      val host = req.header("X-Socrata-Host").map("X-Socrata-Host" -> _)
       val csvReq = base.
-        addPaths(Seq("views", datasetId.uid, "rows.csv")).
-        addHeaders(host).
-        addParameter("accessType" -> "DOWNLOAD").get
+        addPaths(Seq("export", resourceName.underlying + ".csv")).
+        addHeader(RequestId.ReqIdHeader -> req.requestId).
+        get
       logger.debug(csvReq.toString())
       csvReq
     }
 
-    val response = coreClient.execute(makeReq, saveExport(datasetId))
+    val response = sfClient.execute(makeReq, saveExport(resourceName))
 
     // need to catch response signifying error
     response match {
@@ -48,11 +47,11 @@ case class SnapshotService(coreClient: CuratedServiceClient, blobStoreManager: B
     }
   }
 
-  def saveExport(datasetId: DatasetId): Response => Either[JValue, DateTime] = { resp: Response =>
+  def saveExport(resourceName: ResourceName): Response => Either[JValue, DateTime] = { resp: Response =>
 
     if (resp.resultCode == 200) {
       val now = new DateTime(DateTimeZone.UTC)
-      val basename = basenameFor(datasetId, now)
+      val basename = basenameFor(resourceName, now)
 
 //      Debug by downloading a file locally
 //      val zipped = new GZipCompressInputStream(resp.inputStream(), gzipBufferSize)
@@ -62,7 +61,7 @@ case class SnapshotService(coreClient: CuratedServiceClient, blobStoreManager: B
 //      Left(JString("Saved a file!"))
 
       using(new GZipCompressInputStream(resp.inputStream(), gzipBufferSize)) { inStream =>
-        logger.info(s"About to start multipart upload request for dataset ${datasetId.uid}")
+        logger.info(s"About to start multipart upload request for dataset ${resourceName.underlying}")
         blobStoreManager.multipartUpload(inStream, s"$basename.csv.gz").right.map { _ =>
           now
         }
@@ -85,8 +84,8 @@ case class SnapshotService(coreClient: CuratedServiceClient, blobStoreManager: B
   }
 
 
-  def handleFetchRequest(req: HttpRequest, datasetId: DatasetId, name: SnapshotName): HttpResponse = {
-    blobStoreManager.fetch(s"${datasetId.uid}-${name.name}.csv.gz", req.resourceScope) match {
+  def handleFetchRequest(req: HttpRequest, resourceName: ResourceName, name: SnapshotName): HttpResponse = {
+    blobStoreManager.fetch(s"${resourceName.underlying}:${name.name}.csv.gz", req.resourceScope) match {
       case Some(s3Object) =>
         if(name.gzipped) {
           ContentLength(s3Object.getObjectMetadata.getContentLength) ~> Stream { out =>
@@ -112,17 +111,17 @@ case class SnapshotService(coreClient: CuratedServiceClient, blobStoreManager: B
 
   def acceptGzip(req: HttpRequest) = req.header("accept-encoding").fold(false)(_.contains("gzip"))
 
-  def takeSnapshotService(datasetId: DatasetId): HttpService = {
+  def takeSnapshotService(resourceName: ResourceName): HttpService = {
     new SimpleResource {
       override def get: HttpService = req =>
-          handleSnapshotRequest(req, datasetId)
+          handleSnapshotRequest(req, resourceName)
       override def post: HttpService = req =>
-          handleSnapshotRequest(req, datasetId)
+          handleSnapshotRequest(req, resourceName)
     }
   }
 
-  def fetchSnapshotService(datasetId: DatasetId, name: SnapshotName): HttpService =
+  def fetchSnapshotService(resourceName: ResourceName, name: SnapshotName): HttpService =
     new SimpleResource {
-      override def get: HttpService = handleFetchRequest(_, datasetId, name)
+      override def get: HttpService = handleFetchRequest(_, resourceName, name)
     }
 }

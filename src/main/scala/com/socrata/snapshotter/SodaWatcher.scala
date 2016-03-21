@@ -18,7 +18,7 @@ class SodaWatcher(curatorFramework: CuratorFramework,
                   snapshotDAO: SnapshotDAO,
                   gzipBufferSize: Int,
                   blobStoreManager: BlobStoreManager,
-                  basenameFor: (DatasetId, DateTime) => String) extends Closeable {
+                  basenameFor: (ResourceName, DateTime) => String) extends Closeable {
   private val log = LoggerFactory.getLogger(classOf[SodaWatcher])
   private val latch = new LeaderLatch(curatorFramework, latchPath)
   private val pauseMS = pause.toMillis
@@ -56,34 +56,30 @@ class SodaWatcher(curatorFramework: CuratorFramework,
       }
     }
 
-    private def datasetIdOfSFResourceName(s: String): DatasetId =
-      DatasetId(s.drop(1))
-
     private def poll(): Unit = {
       while(true) {
         Thread.sleep(pauseMS)
         if(!latch.hasLeadership) { return }
-        for(ds <- snapshotDAO.datasetsWithSnapshots().par) {
+        for(resourceName <- snapshotDAO.datasetsWithSnapshots().par) {
           if(!latch.hasLeadership) { return }
           try {
             val b = new Breaks
             import b._
             breakable {
-              for(snapshot <- snapshotDAO.datasetSnapshots(ds)) {
+              for(snapshot <- snapshotDAO.datasetSnapshots(resourceName)) {
                 if(!latch.hasLeadership) { return }
-                log.info("Exporting snapshot {} on dataset {}", snapshot, ds)
-                val datasetId = datasetIdOfSFResourceName(ds)
-                snapshotDAO.exportSnapshot(ds, snapshot) {
+                log.info("Exporting snapshot {} on dataset {}", snapshot, resourceName.underlying)
+                snapshotDAO.exportSnapshot(resourceName, snapshot) {
                   case Some(SnapshotDAO.SnapshotInfo(lastModified, stream)) =>
-                    val basename = basenameFor(datasetId, lastModified)
+                    val basename = basenameFor(resourceName, lastModified)
                     val result =
                       using(new GZipCompressInputStream(stream, gzipBufferSize)) { inStream =>
                         blobStoreManager.multipartUpload(inStream, s"$basename.csv.gz")
                       }
                     if(result.isRight) {
                       stream.close()
-                      log.info("Purging snapshot {} on dataset {}", snapshot, ds)
-                      snapshotDAO.deleteSnapshot(ds, snapshot)
+                      log.info("Purging snapshot {} on dataset {}", snapshot, resourceName.underlying)
+                      snapshotDAO.deleteSnapshot(resourceName, snapshot)
                     } else {
                       log.warn("Problem uploading snapshot {} on dataset {} to amazon; not deleting it")
                       // the blobstore will have already logged the actual problem.
@@ -97,7 +93,7 @@ class SodaWatcher(curatorFramework: CuratorFramework,
             }
           } catch {
             case e: IOException =>
-              log.warn("Error snapshotting dataset {}; ignoring", ds : Any, e)
+              log.warn("Error snapshotting dataset {}; ignoring", resourceName.underlying : Any, e)
           }
         }
       }
