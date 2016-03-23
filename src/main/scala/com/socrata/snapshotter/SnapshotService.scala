@@ -27,9 +27,10 @@ case class SnapshotService(sfClient: CuratedServiceClient, blobStoreManager: Blo
   private val logger = LoggerFactory.getLogger(getClass)
 
   def handleSnapshotRequest(req: HttpRequest, resourceName: ResourceName): HttpResponse = {
+    val phase = req.queryParameter("stage").getOrElse("latest")
     val makeReq: RequestBuilder => SimpleHttpRequest = { base =>
       val csvReq = base.
-        addPaths(Seq("export", resourceName.underlying + ".csv")).
+        addPaths(Seq("export", resourceName.underlying, phase + ".csv")).
         addHeader(RequestId.ReqIdHeader -> req.requestId).
         get
       logger.debug(csvReq.toString())
