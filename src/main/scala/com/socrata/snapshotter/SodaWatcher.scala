@@ -81,7 +81,7 @@ class SodaWatcher(curatorFramework: CuratorFramework,
                       log.info("Purging snapshot {} on dataset {}", snapshot, resourceName.underlying)
                       snapshotDAO.deleteSnapshot(resourceName, snapshot)
                     } else {
-                      log.warn("Problem uploading snapshot {} on dataset {} to amazon; not deleting it")
+                      log.warn("Problem uploading snapshot {} on dataset {} to the blobstore; not deleting it")
                       // the blobstore will have already logged the actual problem.
                       // abort processing this dataset
                       break()

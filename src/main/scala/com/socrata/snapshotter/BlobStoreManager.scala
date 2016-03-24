@@ -151,6 +151,7 @@ class BlobStoreManager(bucketName: String, uploadPartSize: Int) extends Closeabl
   }
 
   object ParseKey {
+    // Our filenames are "resourcename:timestamp"; ":" is not a legal character in resource names
     val Pattern = """(.*):(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.?\d*Z)\.csv\.gz""".r
     def unapply(summary: S3ObjectSummary): Option[(String, Long, ResourceName, String)] =
       summary.getKey match {
