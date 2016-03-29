@@ -10,34 +10,30 @@ import com.socrata.http.server.util.handlers.{LoggingOptions, NewLoggingHandler}
 
 import org.slf4j.LoggerFactory
 
-case class DatasetId(uid: String)
+case class ResourceName(underlying: String)
 case class SnapshotName(name: String, gzipped: Boolean)
 case class TimestampPrefix(prefix: String)
 
 case class Router(versionService: HttpService,
-                  snapshotService: (DatasetId) => HttpService,
-                  snapshotServingService: (DatasetId, SnapshotName) => HttpService,
-                  listService: (DatasetId, TimestampPrefix) => HttpService) {
+                  snapshotService: ResourceName => HttpService,
+                  snapshotServingService: (ResourceName, SnapshotName) => HttpService,
+                  listService: (ResourceName, TimestampPrefix) => HttpService) {
 
   private val logger = LoggerFactory.getLogger(getClass)
   private val logWrapper =
     NewLoggingHandler(LoggingOptions(logger, Set("X-Socrata-Host", "X-Socrata-Resource", ReqIdHeader))) _
 
-  private val uidChars = (('a' to 'z') ++ ('0' to '9')).filterNot("10lo".toSet).mkString
-  private val UidRegex = s"([$uidChars]{4}-[$uidChars]{4})".r
-
-  private implicit val dsIdExtractor = new Extractor[DatasetId] {
-      override def extract(s: String) = s match {
-          case UidRegex(uid) => Some(DatasetId(uid))
-          case _ => None
-        }
+  private implicit val resourceNameExtractor =
+    new Extractor[ResourceName] {
+      override def extract(s: String) = Some(ResourceName(s))
     }
 
   val timestampRegexStr = """\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d*)?Z"""
   val TimestampRegex = s"""($timestampRegexStr)""".r
   val SnapshotNameRegex = s"""($timestampRegexStr)\\.csv(\\.gz)?""".r
 
-  private implicit val snapshotNameExtractor = new Extractor[SnapshotName] {
+  private implicit val snapshotNameExtractor =
+    new Extractor[SnapshotName] {
       override def extract(s: String) = s match {
           case SnapshotNameRegex(timestamp, gz) => Some(SnapshotName(timestamp, gz != null))
           case _ => None
@@ -85,10 +81,10 @@ case class Router(versionService: HttpService,
 
   val routes = Routes(
     Route("/version", versionService),
-    Route("/snapshot/{DatasetId}", snapshotService),
-    Route("/snapshot/{DatasetId}/{SnapshotName}", snapshotServingService),
-    Route("/list/{DatasetId}", listService(_ : DatasetId, TimestampPrefix(""))),
-    Route("/list/{DatasetId}/{TimestampPrefix}", listService)
+    Route("/snapshot/{ResourceName}", snapshotService),
+    Route("/snapshot/{ResourceName}/{SnapshotName}", snapshotServingService),
+    Route("/list/{ResourceName}", listService(_ : ResourceName, TimestampPrefix(""))),
+    Route("/list/{ResourceName}/{TimestampPrefix}", listService)
   )
 
   def notFound(req: HttpRequest): HttpResponse = {
