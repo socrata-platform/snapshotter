@@ -73,7 +73,7 @@ class SodaWatcher(curatorFramework: CuratorFramework,
                   case Some(SnapshotDAO.SnapshotInfo(lastModified, stream)) =>
                     val basename = basenameFor(resourceName, lastModified)
                     val result =
-                      using(new GZipCompressInputStream(stream, gzipBufferSize)) { inStream =>
+                      using(new ThreadlessGZipCompressInputStream(stream, gzipBufferSize)) { inStream =>
                         blobStoreManager.multipartUpload(inStream, s"$basename.csv.gz")
                       }
                     if(result.isRight) {
