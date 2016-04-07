@@ -61,7 +61,7 @@ case class SnapshotService(sfClient: CuratedServiceClient, blobStoreManager: Blo
 //      chunked.foreach { case (chunk, _) => IOUtils.copy(chunk, tempFile) }
 //      Left(JString("Saved a file!"))
 
-      using(new GZipCompressInputStream(resp.inputStream(), gzipBufferSize)) { inStream =>
+      using(new ThreadlessGZipCompressInputStream(resp.inputStream(), gzipBufferSize)) { inStream =>
         logger.info(s"About to start multipart upload request for dataset ${resourceName.underlying}")
         blobStoreManager.multipartUpload(inStream, s"$basename.csv.gz").right.map { _ =>
           now
