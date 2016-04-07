@@ -1,7 +1,7 @@
 #!/bin/sh
 set -ev
 
-if [ -e /dev/shm/secrets.sh ]; then
+if [ -e /dev/shm/snapshotter-secrets.sh ]; then
   . /dev/shm/snapshotter-secrets.sh
 fi
 
