@@ -47,7 +47,9 @@ class BlobStoreManager(bucketName: String, uploadPartSize: Int) extends Closeabl
 
   def upload(inStream: InputStream, path: String): Either[JValue, UploadResult] = {
     try {
-      val req = new PutObjectRequest(bucketName, path, inStream, new ObjectMetadata())
+      val md = new ObjectMetadata()
+      md.setSSEAlgorithm(ObjectMetadata.AES_256_SERVER_SIDE_ENCRYPTION)
+      val req = new PutObjectRequest(bucketName, path, inStream, md)
       logger.debug(s"Sending put request to s3: $req")
       val upload = manager.upload(req)
 
@@ -71,9 +73,12 @@ class BlobStoreManager(bucketName: String, uploadPartSize: Int) extends Closeabl
     try {
       logger.debug("Initiate multipart upload")
       val initResult = retrying {
-          s3client.initiateMultipartUpload(
-            new InitiateMultipartUploadRequest(bucketName, path))
-        }
+        val md = new ObjectMetadata()
+        md.setSSEAlgorithm(ObjectMetadata.AES_256_SERVER_SIDE_ENCRYPTION)
+        val req = new InitiateMultipartUploadRequest(bucketName, path)
+        req.setObjectMetadata(md)
+        s3client.initiateMultipartUpload(req)
+      }
       val uploadId = initResult.getUploadId
       val partReqs = createRequests(initResult.getUploadId, path, inStream)
       // make sure to send s3 a mutable java list
