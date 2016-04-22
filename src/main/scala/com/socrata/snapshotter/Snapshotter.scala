@@ -14,7 +14,7 @@ object Snapshotter extends App {
   implicit val shutdownTimeout = Resource.executorShutdownNoTimeout
 
   def basenameFor(resourceName: ResourceName, dateTime: DateTime): String = {
-    val timestampFragment = "%16x".format(-dateTime.getMillis)
+    val timestampFragment = "%016x".format(-dateTime.getMillis)
     s"${resourceName.underlying}:${timestampFragment}"
   }
 
