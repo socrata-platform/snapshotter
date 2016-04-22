@@ -13,8 +13,10 @@ object Snapshotter extends App {
   val config = new SnapshotterServiceConfig(ConfigFactory.load())
   implicit val shutdownTimeout = Resource.executorShutdownNoTimeout
 
-  def basenameFor(resourceName: ResourceName, dateTime: DateTime): String =
-    s"${resourceName.underlying}:${dateTime.withZone(DateTimeZone.UTC)}"
+  def basenameFor(resourceName: ResourceName, dateTime: DateTime): String = {
+    val timestampFragment = "%016x".format(-dateTime.getMillis)
+    s"${resourceName.underlying}:${timestampFragment}"
+  }
 
   for {
     executor <- managed(Executors.newCachedThreadPool())

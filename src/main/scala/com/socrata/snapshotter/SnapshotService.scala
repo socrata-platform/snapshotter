@@ -18,6 +18,7 @@ import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.SimpleResource
 import com.socrata.http.server.util.RequestId
 import com.socrata.http.server.{HttpResponse, HttpRequest, HttpService}
+import org.joda.time.format.ISODateTimeFormat
 
 import org.joda.time.{DateTime, DateTimeZone}
 import org.apache.commons.io.IOUtils
@@ -86,7 +87,8 @@ case class SnapshotService(sfClient: CuratedServiceClient, blobStoreManager: Blo
 
 
   def handleFetchRequest(req: HttpRequest, resourceName: ResourceName, name: SnapshotName): HttpResponse = {
-    blobStoreManager.fetch(s"${resourceName.underlying}:${name.name}.csv.gz", req.resourceScope) match {
+    val basename = basenameFor(resourceName, name.timestamp)
+    blobStoreManager.fetch(s"${basename}.csv.gz", req.resourceScope) match {
       case Some(s3Object) =>
         if(name.gzipped) {
           ContentLength(s3Object.getObjectMetadata.getContentLength) ~> Stream { out =>

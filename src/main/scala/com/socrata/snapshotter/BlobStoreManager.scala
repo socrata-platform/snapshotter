@@ -3,6 +3,8 @@ package com.socrata.snapshotter
 import java.io.{Closeable, InputStream}
 import java.util.Date
 
+import org.joda.time.{DateTimeZone, DateTime}
+
 import scala.collection.JavaConverters._
 
 import com.amazonaws.event.{ProgressListener, ProgressEvent}
@@ -157,11 +159,11 @@ class BlobStoreManager(bucketName: String, uploadPartSize: Int) extends Closeabl
 
   object ParseKey {
     // Our filenames are "resourcename:timestamp"; ":" is not a legal character in resource names
-    val Pattern = """(.*):(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.?\d*Z)\.csv\.gz""".r
+    val Pattern = """(.*):([a-f0-9]{16})\.csv\.gz""".r
     def unapply(summary: S3ObjectSummary): Option[(String, Long, ResourceName, String)] =
       summary.getKey match {
         case Pattern(datasetId, timestamp) =>
-          Some((summary.getKey, summary.getSize, ResourceName(datasetId), timestamp))
+          Some((summary.getKey, summary.getSize, ResourceName(datasetId), new DateTime(-BigInt(timestamp, 16).toLong).withZone(DateTimeZone.UTC).toString))
         case _ =>
           None
       }

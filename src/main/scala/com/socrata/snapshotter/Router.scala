@@ -7,11 +7,13 @@ import com.socrata.http.server.routing.SimpleRouteContext._
 import com.socrata.http.server.routing.Extractor
 import com.socrata.http.server.util.RequestId._
 import com.socrata.http.server.util.handlers.{LoggingOptions, NewLoggingHandler}
+import org.joda.time.DateTime
+import org.joda.time.format.ISODateTimeFormat
 
 import org.slf4j.LoggerFactory
 
 case class ResourceName(underlying: String)
-case class SnapshotName(name: String, gzipped: Boolean)
+case class SnapshotName(timestamp: DateTime, gzipped: Boolean)
 case class TimestampPrefix(prefix: String)
 
 case class Router(versionService: HttpService,
@@ -35,7 +37,7 @@ case class Router(versionService: HttpService,
   private implicit val snapshotNameExtractor =
     new Extractor[SnapshotName] {
       override def extract(s: String) = s match {
-          case SnapshotNameRegex(timestamp, gz) => Some(SnapshotName(timestamp, gz != null))
+          case SnapshotNameRegex(timestamp, gz) => Some(SnapshotName(ISODateTimeFormat.dateTimeParser.parseDateTime(timestamp), gz != null))
           case _ => None
         }
     }
