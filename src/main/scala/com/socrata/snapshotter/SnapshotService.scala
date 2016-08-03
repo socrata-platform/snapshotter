@@ -1,14 +1,8 @@
 package com.socrata.snapshotter
 
-import java.io.{ByteArrayInputStream, FileOutputStream, InputStream}
-import java.nio.file.{StandardCopyOption, Files, Paths}
 import java.util.zip.GZIPInputStream
 
-import com.amazonaws.services.s3.model._
-import com.amazonaws.services.s3.transfer.model.UploadResult
-
 import com.rojoma.json.v3.ast.{JString, JValue}
-import com.rojoma.json.v3.interpolation._
 import com.rojoma.simplearm.v2.using
 
 import com.socrata.curator._
@@ -18,7 +12,6 @@ import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.SimpleResource
 import com.socrata.http.server.util.RequestId
 import com.socrata.http.server.{HttpResponse, HttpRequest, HttpService}
-import org.joda.time.format.ISODateTimeFormat
 
 import org.joda.time.{DateTime, DateTimeZone}
 import org.apache.commons.io.IOUtils

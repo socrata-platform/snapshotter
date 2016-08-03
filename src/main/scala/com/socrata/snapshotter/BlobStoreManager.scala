@@ -3,16 +3,15 @@ package com.socrata.snapshotter
 import java.io.{Closeable, InputStream}
 import java.util.Date
 
-import org.joda.time.{DateTimeZone, DateTime}
+import com.amazonaws.AmazonServiceException
+import org.joda.time.{DateTime, DateTimeZone}
 
 import scala.collection.JavaConverters._
-
-import com.amazonaws.event.{ProgressListener, ProgressEvent}
+import com.amazonaws.event.{ProgressEvent, ProgressListener}
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
 import com.amazonaws.services.s3.transfer.TransferManager
 import com.amazonaws.services.s3.transfer.model.UploadResult
-import com.rojoma.json.v3.interpolation._
 import com.rojoma.json.v3.ast.JValue
 import com.rojoma.simplearm.v2._
 import org.slf4j.LoggerFactory
@@ -33,7 +32,7 @@ class BlobStoreManager(bucketName: String, uploadPartSize: Int) extends Closeabl
       try {
         op
       } catch {
-        case e: AmazonS3Exception if e.getStatusCode == 503 || e.getStatusCode == 500 =>
+        case e: AmazonServiceException if e.getStatusCode == 503 || e.getStatusCode == 500 =>
           // sometimes AWS returns 503s or 500s for perfectly good requests; we'll
           // treat them as transient failures and retry the opeartion
           if(retryCount < retryLimit) {
@@ -61,7 +60,7 @@ class BlobStoreManager(bucketName: String, uploadPartSize: Int) extends Closeabl
       logger.debug(s"uploadResult: $uploadResult")
       Right(uploadResult)
     } catch {
-      case exception: AmazonS3Exception => Left(
+      case exception: AmazonServiceException => Left(
         json"""{ message: "Problem uploading to S3",
                      error: ${exception.toString},
                      "error code": ${exception.getErrorCode},
@@ -92,7 +91,7 @@ class BlobStoreManager(bucketName: String, uploadPartSize: Int) extends Closeabl
                 new CompleteMultipartUploadRequest(bucketName, path, uploadId, uploadPartTags))
             })
     } catch {
-      case exception: AmazonS3Exception =>
+      case exception: AmazonServiceException =>
         val msg =
           json"""{ message: "Problem uploading to S3",
                        error: ${exception.toString},
@@ -108,7 +107,7 @@ class BlobStoreManager(bucketName: String, uploadPartSize: Int) extends Closeabl
     try {
       Some(resourceScope.open(retrying(s3client.getObject(bucketName, path))))
     } catch {
-      case e: AmazonS3Exception if e.getStatusCode == 404 =>
+      case e: AmazonServiceException if e.getStatusCode == 404 =>
         None
     }
 
