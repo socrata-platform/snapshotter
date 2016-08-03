@@ -112,6 +112,10 @@ class BlobStoreManager(bucketName: String, uploadPartSize: Int) extends Closeabl
         None
     }
 
+  def delete(path: String, resourceScope: ResourceScope) =
+    // s3client.deleteObject never returns NotFound (thus providing idempotency)
+    retrying(s3client.deleteObject(bucketName, path))
+
   def sendRequests(partReqs: Iterator[UploadPartRequest]): List[PartETag] = {
     partReqs.map { req =>
       logger.debug(s"Requesting to upload part {}", req.getPartNumber)

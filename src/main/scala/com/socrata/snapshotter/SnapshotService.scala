@@ -85,7 +85,6 @@ case class SnapshotService(sfClient: CuratedServiceClient, blobStoreManager: Blo
     msg
   }
 
-
   def handleFetchRequest(req: HttpRequest, resourceName: ResourceName, name: SnapshotName): HttpResponse = {
     val basename = basenameFor(resourceName, name.timestamp)
     blobStoreManager.fetch(s"${basename}.csv.gz", req.resourceScope) match {
@@ -112,6 +111,13 @@ case class SnapshotService(sfClient: CuratedServiceClient, blobStoreManager: Blo
     }
   }
 
+  def handleDeleteRequest(req: HttpRequest, resourceName: ResourceName, name: SnapshotName): HttpResponse = {
+    val basename = basenameFor(resourceName, name.timestamp)
+    blobStoreManager.delete(s"${basename}.csv.gz", req.resourceScope)
+    // Return OK, never NotFound, because DELETE should be idempotent
+    OK
+  }
+
   def acceptGzip(req: HttpRequest) = req.header("accept-encoding").fold(false)(_.contains("gzip"))
 
   def takeSnapshotService(resourceName: ResourceName): HttpService = {
@@ -126,5 +132,6 @@ case class SnapshotService(sfClient: CuratedServiceClient, blobStoreManager: Blo
   def fetchSnapshotService(resourceName: ResourceName, name: SnapshotName): HttpService =
     new SimpleResource {
       override def get: HttpService = handleFetchRequest(_, resourceName, name)
+      override def delete: HttpService = handleDeleteRequest(_, resourceName, name)
     }
 }
