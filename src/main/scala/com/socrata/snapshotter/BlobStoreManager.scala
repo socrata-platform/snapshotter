@@ -12,6 +12,7 @@ import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
 import com.amazonaws.services.s3.transfer.TransferManager
 import com.amazonaws.services.s3.transfer.model.UploadResult
+import com.rojoma.json.v3.interpolation._
 import com.rojoma.json.v3.ast.JValue
 import com.rojoma.simplearm.v2._
 import org.slf4j.LoggerFactory

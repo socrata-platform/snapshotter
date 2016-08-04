@@ -3,6 +3,7 @@ package com.socrata.snapshotter
 import java.util.zip.GZIPInputStream
 
 import com.rojoma.json.v3.ast.{JString, JValue}
+import com.rojoma.json.v3.interpolation._
 import com.rojoma.simplearm.v2.using
 
 import com.socrata.curator._
