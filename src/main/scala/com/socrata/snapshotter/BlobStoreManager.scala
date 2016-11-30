@@ -3,11 +3,11 @@ package com.socrata.snapshotter
 import java.io.{Closeable, InputStream}
 import java.util.Date
 
-import com.amazonaws.AmazonServiceException
-import org.joda.time.{DateTime, DateTimeZone}
+import org.joda.time.{DateTimeZone, DateTime}
 
 import scala.collection.JavaConverters._
-import com.amazonaws.event.{ProgressEvent, ProgressListener}
+
+import com.amazonaws.event.{ProgressListener, ProgressEvent}
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model._
 import com.amazonaws.services.s3.transfer.TransferManager
@@ -33,7 +33,7 @@ class BlobStoreManager(bucketName: String, uploadPartSize: Int) extends Closeabl
       try {
         op
       } catch {
-        case e: AmazonServiceException if e.getStatusCode == 503 || e.getStatusCode == 500 =>
+        case e: AmazonS3Exception if e.getStatusCode == 503 || e.getStatusCode == 500 =>
           // sometimes AWS returns 503s or 500s for perfectly good requests; we'll
           // treat them as transient failures and retry the opeartion
           if(retryCount < retryLimit) {
@@ -61,7 +61,7 @@ class BlobStoreManager(bucketName: String, uploadPartSize: Int) extends Closeabl
       logger.debug(s"uploadResult: $uploadResult")
       Right(uploadResult)
     } catch {
-      case exception: AmazonServiceException => Left(
+      case exception: AmazonS3Exception => Left(
         json"""{ message: "Problem uploading to S3",
                      error: ${exception.toString},
                      "error code": ${exception.getErrorCode},
@@ -92,7 +92,7 @@ class BlobStoreManager(bucketName: String, uploadPartSize: Int) extends Closeabl
                 new CompleteMultipartUploadRequest(bucketName, path, uploadId, uploadPartTags))
             })
     } catch {
-      case exception: AmazonServiceException =>
+      case exception: AmazonS3Exception =>
         val msg =
           json"""{ message: "Problem uploading to S3",
                        error: ${exception.toString},
@@ -108,13 +108,9 @@ class BlobStoreManager(bucketName: String, uploadPartSize: Int) extends Closeabl
     try {
       Some(resourceScope.open(retrying(s3client.getObject(bucketName, path))))
     } catch {
-      case e: AmazonServiceException if e.getStatusCode == 404 =>
+      case e: AmazonS3Exception if e.getStatusCode == 404 =>
         None
     }
-
-  def delete(path: String, resourceScope: ResourceScope) =
-    // s3client.deleteObject never returns NotFound (thus providing idempotency)
-    retrying(s3client.deleteObject(bucketName, path))
 
   def sendRequests(partReqs: Iterator[UploadPartRequest]): List[PartETag] = {
     partReqs.map { req =>
