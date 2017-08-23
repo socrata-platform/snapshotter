@@ -32,16 +32,41 @@ class SnapshotDAOImpl(sfClient: CuratedServiceClient) extends SnapshotDAO {
   }
 
   private def delete(s: String*): Boolean = {
+    sealed abstract class Result
+    case object OK extends Result
+    case object NotFound extends Result
+    case object Busy extends Result
+
     def handler(r: Response) =
       r.resultCode match {
         case 200 =>
-          true
+          OK
         case 404 =>
-          false
+          NotFound
+        case 409 =>
+          Busy
         case other =>
           throw new Exception("Unexpected result code for DELETE of " + s.mkString("/","/","") + ": " + other)
       }
-    sfClient.execute(_.p(s:_*).timeoutMS(stdTimeout).delete, handler)
+
+    def retryLoop(retries: Int): Boolean = {
+      sfClient.execute(_.p(s:_*).timeoutMS(stdTimeout).delete, handler) match {
+        case OK => true
+        case NotFound => false
+        case Busy =>
+          if(retries > 0) {
+            Thread.sleep(60 * 1000) // wait a minute
+            retryLoop(retries - 1)
+          } else {
+            // welp, we've waited a bit and it's still 409ing.  Oh
+            // well.  Rather than block other exports, we'll say "ok"
+            // and the next pass through the loop will re-export and
+            // try to clean it up again.
+            true
+          }
+      }
+    }
+    retryLoop(5)
   }
 
   def datasetsWithSnapshots(): Set[ResourceName] =
