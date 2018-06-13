@@ -24,6 +24,8 @@ class SodaWatcher(curatorFramework: CuratorFramework,
   private val pauseMS = pause.toMillis
   private var worker: Worker = null
 
+  private val Quota = 3 // how many snapshots we keep in S3
+
   def start(): Unit =
     synchronized {
       if(worker == null) {
@@ -80,6 +82,12 @@ class SodaWatcher(curatorFramework: CuratorFramework,
                       stream.close()
                       log.info("Purging snapshot {} on dataset {}", snapshot, resourceName.underlying)
                       snapshotDAO.deleteSnapshot(resourceName, snapshot)
+                      try {
+                        blobStoreManager.deleteCopiesExceedingQuota(resourceName.underlying, Quota)
+                      } catch {
+                        case e: Exception =>
+                          log.warn("Error deleting snapshots exceeding quota dataset {}; ignoring", resourceName.underlying: Any, e)
+                      }
                     } else {
                       log.warn("Problem uploading snapshot {} on dataset {} to the blobstore; not deleting it",
                         snapshot, resourceName.underlying)
