@@ -157,6 +157,30 @@ class BlobStoreManager(bucketName: String, uploadPartSize: Int) extends Closeabl
     json"""{ "search prefix": $path, count: ${snapshots.length}, snapshots: $snapshots }"""
   }
 
+  def deleteCopiesExceedingQuota(path: String, quota: Int): Seq[String] = {
+    logger.debug(s"deleting copies exceeding quota $quota")
+    val req = new ListObjectsRequest().withBucketName(bucketName).withPrefix(path)
+    val objectListing = retrying(s3client.listObjects(req))
+    val objectSummaries: Seq[S3ObjectSummary] = objectListing.getObjectSummaries.asScala
+
+    val snapshots: Seq[(String, Long)] =
+      objectSummaries.collect {
+        case ParseKey(key, size, datasetId, timestamp) =>
+          (key, DateTime.parse(timestamp).getMillis)
+      }.sortBy(_._2) // sort by time
+
+    val toBeDeleted = snapshots.dropRight(quota)
+
+    using (new ResourceScope()) { rs =>
+      toBeDeleted.foreach {
+        case (key, _) =>
+          logger.info(s"deleting copy $key exceeding quota $quota")
+          this.delete(key, rs)
+      }
+    }
+    toBeDeleted.map(_._1)
+  }
+
   def abortMultiPartUploads(): Unit = {
     manager.abortMultipartUploads(bucketName, new Date())
   }
