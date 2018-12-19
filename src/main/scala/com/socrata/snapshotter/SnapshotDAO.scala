@@ -2,7 +2,6 @@ package com.socrata.snapshotter
 
 import java.io.InputStream
 
-import com.rojoma.simplearm.v2.ResourceScope
 import org.joda.time.DateTime
 
 import scala.collection.immutable.SortedSet

@@ -5,16 +5,18 @@ name := "snapshotter"
 
 scalaVersion := "2.11.7"
 
+resolvers += "socrata" at "https://repo.socrata.com/artifactory/libs-release"
+
 libraryDependencies ++= Seq(
-  "com.socrata"               %% "socrata-http-jetty"      % "3.4.1" excludeAll(
+  "com.socrata"               %% "socrata-http-jetty"      % "3.11.4" excludeAll(
     ExclusionRule(organization = "com.socrata", name = "socrata-http-common")),
-  "com.socrata"               %% "socrata-http-client"     % "3.4.1" excludeAll(
+  "com.socrata"               %% "socrata-http-client"     % "3.11.4" excludeAll(
     ExclusionRule(organization = "com.socrata", name = "socrata-http-common")),
-  "com.socrata"               %% "socrata-http-common"     % "3.4.1" excludeAll(
+  "com.socrata"               %% "socrata-http-common"     % "3.11.4" excludeAll(
     ExclusionRule(organization = "com.rojoma")),
-  "com.socrata"               %% "socrata-http-curator-broker" % "3.4.1" excludeAll(
+  "com.socrata"               %% "socrata-http-curator-broker" % "3.11.4" excludeAll(
     ExclusionRule(organization = "com.rojoma")),
-  "com.socrata"               %% "socrata-curator-utils"   % "1.0.3" excludeAll(
+  "com.socrata"               %% "socrata-curator-utils"   % "1.1.2" excludeAll(
     ExclusionRule(organization = "com.socrata", name = "socrata-http-client"),
     ExclusionRule(organization = "com.socrata", name = "socrata-http-jetty")),
   "ch.qos.logback"             % "logback-classic"         % "1.1.3",

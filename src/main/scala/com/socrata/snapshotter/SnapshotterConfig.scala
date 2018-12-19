@@ -1,6 +1,6 @@
 package com.socrata.snapshotter
 
-import com.socrata.curator.{CuratorConfig, CuratedClientConfig, DiscoveryBrokerConfig, DiscoveryConfig}
+import com.socrata.curator.{CuratorConfig, CuratedClientConfig, DiscoveryConfig}
 import com.socrata.thirdparty.typesafeconfig.ConfigClass
 import com.typesafe.config.Config
 
