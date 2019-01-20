@@ -1,19 +1,18 @@
 package com.socrata.snapshotter
 
+import java.io.InputStream
 import java.util.zip.GZIPInputStream
 
 import com.rojoma.json.v3.ast.{JString, JValue}
 import com.rojoma.json.v3.interpolation._
 import com.rojoma.simplearm.v2.using
-
 import com.socrata.curator._
-import com.socrata.http.client.{Response, SimpleHttpRequest, RequestBuilder}
+import com.socrata.http.client.{RequestBuilder, Response, SimpleHttpRequest}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.SimpleResource
 import com.socrata.http.server.util.RequestId
-import com.socrata.http.server.{HttpResponse, HttpRequest, HttpService}
-
+import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
 import org.joda.time.{DateTime, DateTimeZone}
 import org.apache.commons.io.IOUtils
 import org.slf4j.LoggerFactory
@@ -40,6 +39,27 @@ case class SnapshotService(sfClient: CuratedServiceClient, blobStoreManager: Blo
         OK ~> Json(timestamp.withZone(DateTimeZone.UTC).toString)
       case Left(msg) =>
         InternalServerError ~> Json(msg)
+    }
+  }
+
+  def handleSnapshotRequestFromReqPayload(req: HttpRequest, resourceName: ResourceName, dateTime: DateTime): HttpResponse = {
+    val result = saveExport(resourceName, dateTime, req.servletRequest.getInputStream)
+    result match {
+      case Right(timestamp) =>
+        OK ~> Json(timestamp.withZone(DateTimeZone.UTC).toString)
+      case Left(msg) =>
+        InternalServerError ~> Json(msg)
+    }
+  }
+
+  def saveExport(resourceName: ResourceName, dateTime: DateTime, inputStream: InputStream): Either[JValue, DateTime] = {
+    val basename = basenameFor(resourceName, dateTime)
+
+    using(new ThreadlessGZipCompressInputStream(inputStream, gzipBufferSize)) { inStream =>
+      logger.info(s"About to start multipart upload request for dataset ${resourceName.underlying}")
+      blobStoreManager.multipartUpload(inStream, s"$basename.csv.gz").right.map { _ =>
+        dateTime
+      }
     }
   }
 
@@ -119,7 +139,16 @@ case class SnapshotService(sfClient: CuratedServiceClient, blobStoreManager: Blo
       override def get: HttpService = req =>
           handleSnapshotRequest(req, resourceName)
       override def post: HttpService = req =>
-          handleSnapshotRequest(req, resourceName)
+          Option(req.servletRequest.getParameter("datetime")) match {
+            case Some(dt) =>
+              val dateTime = DateTime.parse(dt)
+              // This is a "temporary" method to support moving obe snapshot to new backup format for nbe-only datasets
+              // w/o waiting for the natural publication cycle
+              // csv content is coming from the request payload (vs calling soda fountain)
+              handleSnapshotRequestFromReqPayload(req, resourceName, dateTime)
+            case None =>
+              handleSnapshotRequest(req, resourceName)
+          }
     }
   }
 
