@@ -5,7 +5,7 @@ name := "snapshotter"
 
 scalaVersion := "2.11.7"
 
-resolvers += "socrata" at "https://repo.socrata.com/artifactory/libs-release"
+externalResolvers := Seq("Socrata Libs Release" at "https://repo.socrata.com/artifactory/libs-release")
 
 libraryDependencies ++= Seq(
   "com.socrata"               %% "socrata-http-jetty"      % "3.11.4" excludeAll(
