@@ -2,7 +2,9 @@
 set -ev
 
 if [ -e /dev/shm/snapshotter-secrets.sh ]; then
-  . /dev/shm/snapshotter-secrets.sh > /dev/null
+  set +ev
+  . /dev/shm/snapshotter-secrets.sh
+  set -ev
 fi
 
 /bin/env_parse ${SERVER_CONFIG}.j2
